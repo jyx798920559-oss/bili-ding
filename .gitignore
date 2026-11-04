@@ -1,0 +1,17 @@
+# 依赖 / 构建残留
+node_modules/
+*.log
+
+# 预览与截图产生的临时目录
+preview/edge-profile/
+preview/shots/
+preview/_inline.js
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+# 本地参考图（他人的界面截图，不进仓库）
+reference/
+# v1 旧版备份
+biliding.v1.user.js

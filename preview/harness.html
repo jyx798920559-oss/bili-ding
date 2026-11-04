@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B钉 v2 · 视觉预览</title>
+<style>html,body{margin:0;height:100%;background:#EDEFF5;overflow:hidden}</style>
+</head>
+<body>
+<script>
+(function () {
+  function cover(i) {
+    var pool = [["#FF9A8B", "#FF6A88"], ["#7F7FD5", "#86A8E7"], ["#43C6AC", "#191654"], ["#FDC830", "#F37335"], ["#00C9FF", "#92FE9D"], ["#FC466B", "#3F5EFB"]];
+    var c = pool[i % pool.length];
+    var label = ["机械臂标定", "台架数据", "CAN 报文", "算法评测", "车载以太", "OTA 灰度"][i % 6];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="' + c[0] + '"/><stop offset="1" stop-color="' + c[1] + '"/></linearGradient></defs>' +
+      '<rect width="640" height="360" fill="url(#g)"/>' +
+      '<text x="50%" y="52%" text-anchor="middle" fill="rgba(255,255,255,.92)" font-family="sans-serif" font-size="34">' + label + '</text>' +
+      '<text x="50%" y="64%" text-anchor="middle" fill="rgba(255,255,255,.7)" font-family="sans-serif" font-size="18">16:9 封面占位</text></svg>';
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+  function face(i) {
+    var pool = ["#5B8DEF", "#F3A23A", "#00C56C", "#9B5DE5", "#FF6B6B", "#12B5CB"];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96">' +
+      '<rect width="96" height="96" rx="48" fill="' + pool[i % pool.length] + '"/>' +
+      '<text x="50%" y="56%" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="40">' +
+      ["稳", "明", "通", "研", "测", "算"][i % 6] + '</text></svg>';
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+  var TITLES = [
+    "【标定】D5X 前视相机外参标定流程拆解与实测偏差",
+    "台架数据回灌：把一整天的 CAN 报文压成 10 分钟复盘",
+    "重卡 BEV 感知在雨雾工况下的掉点分析与补救",
+    "从 0 写一个车载 OTA 灰度发布看板（附源码）",
+    "为什么你的 AVM 拼接缝总有一条亮线",
+    "车道线拟合抖动？先看看时间同步对不对",
+    "一把梭：用 Python 把 20 个 DBC 批量转成 Excel",
+    "「实拍」凌晨三点的试验场，只有我和一排车",
+    "域控制器上电时序踩坑记录（含示波器波形）",
+    "雷达点云外参标定：一次失败、两次成功的过程",
+    "老车机也能刷？聊聊 Android 9 车机的极限",
+    "把 4 路摄像头接进一台 Jetson 的成本清单"
+  ];
+  function items(n, offset) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var k = (i + (offset || 0)) % TITLES.length;
+      out.push({
+        bvid: "BV1xx411c7m" + (10 + k),
+        aid: 880000 + k,
+        title: TITLES[k],
+        pic: cover(k),
+        duration: 240 + k * 37,
+        owner: { name: ["老张聊车", "标定小分队", "台架日记", "感知阿伟", "车机老王", "数据搬运工"][k % 6], face: face(k) },
+        stat: { view: 12000 + k * 8888, like: 320 + k * 44, danmaku: 60 + k * 12, reply: 24 + k * 6 },
+        pubdate: Math.floor(Date.now() / 1000) - (k + 1) * 1800,
+        tname: ["科技", "汽车", "知识", "数码", "影视", "生活"][k % 6]
+      });
+    }
+    return out;
+  }
+  window.__BILIDING_MOCK__ = {
+    route: { kind: "home", key: "home" },
+    me: null,
+    handle: function (url) {
+      if (url.indexOf("nav") >= 0) return { code: -101, message: "未登录" };
+      if (url.indexOf("rcmd") >= 0) return { code: 0, data: { item: items(8, 0) } };
+      if (url.indexOf("popular") >= 0) return { code: 0, data: { list: items(9, 3) } };
+      if (url.indexOf("newlist") >= 0) return { code: 0, data: { archives: items(7, 1) } };
+      if (url.indexOf("search/type") >= 0) return { code: 0, data: { result: items(6, 2) } };
+      if (url.indexOf("view") >= 0) {
+        return {
+          code: 0, data: {
+            bvid: "BV1xx411c7m1", aid: 880001, title: TITLES[0], pic: cover(0),
+            owner: { name: "老张聊车", face: face(0) },
+            stat: { view: 248000, danmaku: 1860, like: 9200, reply: 486 },
+            pubdate: Math.floor(Date.now() / 1000) - 86400 * 2, tname: "科技",
+            desc: "本期把 D5X 前视相机的外参标定完整走一遍：场地选择、标靶摆放、数据采集、求解、复验。"
+          }
+        };
+      }
+      if (url.indexOf("/x/v2/reply") >= 0) {
+        return {
+          code: 0, data: {
+            page: { count: 3 },
+            replies: [
+              { member: { uname: "标定小分队", avatar: face(1) }, content: { message: "第 7 分钟那个偏差已经 0.3 度了，建议再跑一次。" }, ctime: Math.floor(Date.now() / 1000) - 3600, like: 12 },
+              { member: { uname: "台架日记", avatar: face(2) }, content: { message: "求解器用的哪一套？OpenCV 还是自研？" }, ctime: Math.floor(Date.now() / 1000) - 7200, like: 5 },
+              { member: { uname: "感知阿伟", avatar: face(3) }, content: { message: "收藏了，正好下周要复标。" }, ctime: Math.floor(Date.now() / 1000) - 10800, like: 2 }
+            ]
+          }
+        };
+      }
+      return { code: 0, data: {} };
+    }
+  };
+
+  // 允许用 ?skin=feishu / ?conv=conv:hot / ?route=video 切换预览状态
+  var q = new URLSearchParams(location.search);
+  var skin = q.get("skin");
+  if (skin) { try { localStorage.setItem("biliding-skin", skin); } catch (e) { window.__PREVIEW_SKIN__ = skin; } }
+  var route = q.get("route");
+  if (route === "video") window.__BILIDING_MOCK__.route = { kind: "video", key: "video", bvid: "BV1xx411c7m1", page: 1 };
+
+  var s = document.createElement("script");
+  s.src = "../biliding.user.js";
+  document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "biliding",
+  "version": "2.0.0",
+  "description": "B钉：把 B 站装进钉钉 / 飞书 / 企业微信的用户脚本（三合一 IM 皮肤）",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "check": "node --check biliding.user.js && node check.js",
+    "verify": "npm run build && npm run check"
+  },
+  "keywords": ["userscript", "tampermonkey", "bilibili", "dingtalk", "feishu", "wecom", "skin"],
+  "license": "MIT"
+}
