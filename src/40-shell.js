@@ -46,7 +46,7 @@
     return [
       '<div class="im-rail">',
       '  <div class="im-org" title="' + esc(sk.org) + '">',
-      '    <div class="im-org-logo">锐</div>',
+      '    <div class="im-org-logo">云</div>',
       '    <div class="im-org-meta"><div class="im-org-name">' + esc(sk.org) + '</div>' +
       '<div class="im-org-sub">云枢科技股份有限公司</div></div>',
       SVG.chevdown,
@@ -68,7 +68,7 @@
       if (n === "消息") badge = '<i class="bd-badge" data-badge="nav-msg">20</i>';
       if (n === "群聊") badge = '<i class="bd-badge" data-badge="nav-group">20</i>';
       return '<div class="im-nav2-item' + (i === 0 ? " on" : "") + '" data-nav2="' + esc(n) + '">' +
-        (n === "我创建的" ? SVG.chevdown.replace('class="', 'class="chev ') : "") +
+        (n === "我创建的" ? SVG.chevdown.replace("<svg ", '<svg class="chev" ') : "") +
         '<span>' + esc(n) + '</span>' + badge + '</div>';
     }).join("");
     var tree = NAV2_GROUPS.map(function (g) {

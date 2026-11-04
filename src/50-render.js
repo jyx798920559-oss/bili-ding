@@ -278,13 +278,13 @@
     var now = Math.floor(Date.now() / 1000);
     var script = d.members
       ? [
-        { a: "林望舒", t: "这个是云枢日制件，你需要下周一前给出结论。", time: now - 5400 },
+        { a: "林望舒", t: "这版排期表你过一下，下周一前给出结论。", time: now - 5400 },
         { a: "周砚", t: "@林望舒 收到，我这边先跑一遍台架。", time: now - 4800 },
         { a: "我", t: "我下午把测试记录同步到群里。", time: now - 720, me: true },
         { a: "林望舒", t: d.preview.replace(/^[^:]*:\s*/, ""), time: now - 300 }
       ]
       : [
-        { a: d.name, t: "你还能挪一台D5X给软件预研调试通讯模块不？", time: now - 900, quote: "【陈亦然】你还能挪一台D5X给软件预研调试通讯模块不？", extra: '<div class="im-reply-link">1条回复</div>' },
+        { a: d.name, t: "你还能挪一台样车给软件预研调试通讯模块不？", time: now - 900, quote: "【陈亦然】你还能挪一台样车给软件预研调试通讯模块不？", extra: '<div class="im-reply-link">1条回复</div>' },
         { a: "我", t: "哈意思，我现在一台也没有呀", time: now - 780, me: true },
         { a: d.name, t: "老机器", time: now - 600 },
         { a: d.name, t: "先用老机器预研", time: now - 540 },

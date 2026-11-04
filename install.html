@@ -38,7 +38,7 @@
 <body>
 <div class="wrap">
   <h1>B钉 v2 · 安装</h1>
-  <div class="sub">钉钉 / 飞书 / 企业微信 三合一 B站皮肤 · 单文件 117.3 KB · UTF-8</div>
+  <div class="sub">钉钉 / 飞书 / 企业微信 三合一 B站皮肤 · 单文件 117.4 KB · UTF-8</div>
 
   <div class="card">
     <ol>
@@ -397,6 +397,7 @@
   }
 
   // 分组栏（钉钉/企微左二栏）里挂的「我创建的」分组树：把 B站分区按主题分桶
+  // 分组名全部虚构，不含任何真实客户 / 项目 / 同事信息。
   var NAV2_GROUPS = [
     { name: "前装一期", keys: ["car", "tech", "sports"] },
     { name: "小分组", keys: ["documentary", "film"] },
@@ -404,16 +405,17 @@
     { name: "工程机", keys: ["game", "douga"] },
     { name: "客户乙", keys: ["ent", "life"] },
     { name: "售后支持", keys: ["food", "fashion"] },
-    { name: "顾南乔", keys: ["dance", "kichiku"] }
+    { name: "临时组", keys: ["dance", "kichiku"] }
   ];
 
   // 首屏兜底会话（真实站也保留：让工作区看起来有人）
+  // 人名 / 项目名 / 公司名全部虚构，仅用于撑起 IM 外观。
   var DECOY_CONVS = [
-    { id: "sys:1", name: "【IPMT】QC-8项目组", tag: "内部群", preview: "林望舒: 这个是云枢日制件，你需要下…", time: "09:32", avatar: "E", color: "#1A87FF", unread: 12, mute: true, members: 8 },
-    { id: "sys:2", name: "鹰眼 2.0软件&amp;算法计划（研发）", tag: "内部群", preview: "周砚: 撤回了一条消息", time: "09:12", avatar: "E", color: "#4D8DFF", unread: 3, mute: true, members: 24 },
-    { id: "sys:3", name: "陈亦然", preview: "只有一台", time: "昨天", avatar: "婷", color: "#8A93A0", members: 0 },
-    { id: "sys:4", name: "张与安", tag: "部门标签", preview: "因为这个题，所以我接了一个扩展坞", time: "昨天", avatar: "杰", color: "#FF6B35", read: true, members: 0 },
-    { id: "sys:5", name: "海外车队加装项目组…", tag: "内部群", preview: "祁远: 叠加之前何工确认过，后天我会再次…", time: "昨天", avatar: "宇", color: "#00C56C", unread: 17, mute: true, members: 12 },
+    { id: "sys:1", name: "【IPMT】QC-8 项目组", tag: "内部群", preview: "林望舒: 这版排期表你过一下，下周一前给结论…", time: "09:32", avatar: "Q", color: "#1A87FF", unread: 12, mute: true, members: 8 },
+    { id: "sys:2", name: "鹰眼 2.0 算法计划（研发）", tag: "内部群", preview: "周砚: 撤回了一条消息", time: "09:12", avatar: "Y", color: "#4D8DFF", unread: 3, mute: true, members: 24 },
+    { id: "sys:3", name: "陈亦然", preview: "只有一台", time: "昨天", avatar: "亦", color: "#8A93A0", members: 0 },
+    { id: "sys:4", name: "张与安", tag: "部门标签", preview: "因为这个题，所以我接了一个扩展坞", time: "昨天", avatar: "与", color: "#FF6B35", read: true, members: 0 },
+    { id: "sys:5", name: "海外车队加装项目组", tag: "内部群", preview: "祁远: 叠加之前核对过，后天我会再次复核…", time: "昨天", avatar: "海", color: "#00C56C", unread: 17, mute: true, members: 12 },
     { id: "sys:6", name: "罗一川,许星野,唐声远", tag: "外部群", preview: "罗一川: OK 等会给测试送过去", time: "周一", avatar: "罗", color: "#12B5CB", members: 36 }
   ];
 
@@ -1196,7 +1198,7 @@
     return [
       '&lt;div class="im-rail"&gt;',
       '  &lt;div class="im-org" title="' + esc(sk.org) + '"&gt;',
-      '    &lt;div class="im-org-logo"&gt;锐&lt;/div&gt;',
+      '    &lt;div class="im-org-logo"&gt;云&lt;/div&gt;',
       '    &lt;div class="im-org-meta"&gt;&lt;div class="im-org-name"&gt;' + esc(sk.org) + '&lt;/div&gt;' +
       '&lt;div class="im-org-sub"&gt;云枢科技股份有限公司&lt;/div&gt;&lt;/div&gt;',
       SVG.chevdown,
@@ -1218,7 +1220,7 @@
       if (n === "消息") badge = '&lt;i class="bd-badge" data-badge="nav-msg"&gt;20&lt;/i&gt;';
       if (n === "群聊") badge = '&lt;i class="bd-badge" data-badge="nav-group"&gt;20&lt;/i&gt;';
       return '&lt;div class="im-nav2-item' + (i === 0 ? " on" : "") + '" data-nav2="' + esc(n) + '"&gt;' +
-        (n === "我创建的" ? SVG.chevdown.replace('class="', 'class="chev ') : "") +
+        (n === "我创建的" ? SVG.chevdown.replace("&lt;svg ", '&lt;svg class="chev" ') : "") +
         '&lt;span&gt;' + esc(n) + '&lt;/span&gt;' + badge + '&lt;/div&gt;';
     }).join("");
     var tree = NAV2_GROUPS.map(function (g) {
@@ -1768,13 +1770,13 @@
     var now = Math.floor(Date.now() / 1000);
     var script = d.members
       ? [
-        { a: "林望舒", t: "这个是云枢日制件，你需要下周一前给出结论。", time: now - 5400 },
+        { a: "林望舒", t: "这版排期表你过一下，下周一前给出结论。", time: now - 5400 },
         { a: "周砚", t: "@林望舒 收到，我这边先跑一遍台架。", time: now - 4800 },
         { a: "我", t: "我下午把测试记录同步到群里。", time: now - 720, me: true },
         { a: "林望舒", t: d.preview.replace(/^[^:]*:\s*/, ""), time: now - 300 }
       ]
       : [
-        { a: d.name, t: "你还能挪一台D5X给软件预研调试通讯模块不？", time: now - 900, quote: "【陈亦然】你还能挪一台D5X给软件预研调试通讯模块不？", extra: '&lt;div class="im-reply-link"&gt;1条回复&lt;/div&gt;' },
+        { a: d.name, t: "你还能挪一台样车给软件预研调试通讯模块不？", time: now - 900, quote: "【陈亦然】你还能挪一台样车给软件预研调试通讯模块不？", extra: '&lt;div class="im-reply-link"&gt;1条回复&lt;/div&gt;' },
         { a: "我", t: "哈意思，我现在一台也没有呀", time: now - 780, me: true },
         { a: d.name, t: "老机器", time: now - 600 },
         { a: d.name, t: "先用老机器预研", time: now - 540 },

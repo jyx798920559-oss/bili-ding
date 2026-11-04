@@ -137,6 +137,7 @@
   }
 
   // 分组栏（钉钉/企微左二栏）里挂的「我创建的」分组树：把 B站分区按主题分桶
+  // 分组名全部虚构，不含任何真实客户 / 项目 / 同事信息。
   var NAV2_GROUPS = [
     { name: "前装一期", keys: ["car", "tech", "sports"] },
     { name: "小分组", keys: ["documentary", "film"] },
@@ -144,16 +145,17 @@
     { name: "工程机", keys: ["game", "douga"] },
     { name: "客户乙", keys: ["ent", "life"] },
     { name: "售后支持", keys: ["food", "fashion"] },
-    { name: "顾南乔", keys: ["dance", "kichiku"] }
+    { name: "临时组", keys: ["dance", "kichiku"] }
   ];
 
   // 首屏兜底会话（真实站也保留：让工作区看起来有人）
+  // 人名 / 项目名 / 公司名全部虚构，仅用于撑起 IM 外观。
   var DECOY_CONVS = [
-    { id: "sys:1", name: "【IPMT】QC-8项目组", tag: "内部群", preview: "林望舒: 这个是云枢日制件，你需要下…", time: "09:32", avatar: "E", color: "#1A87FF", unread: 12, mute: true, members: 8 },
-    { id: "sys:2", name: "鹰眼 2.0软件&算法计划（研发）", tag: "内部群", preview: "周砚: 撤回了一条消息", time: "09:12", avatar: "E", color: "#4D8DFF", unread: 3, mute: true, members: 24 },
-    { id: "sys:3", name: "陈亦然", preview: "只有一台", time: "昨天", avatar: "婷", color: "#8A93A0", members: 0 },
-    { id: "sys:4", name: "张与安", tag: "部门标签", preview: "因为这个题，所以我接了一个扩展坞", time: "昨天", avatar: "杰", color: "#FF6B35", read: true, members: 0 },
-    { id: "sys:5", name: "海外车队加装项目组…", tag: "内部群", preview: "祁远: 叠加之前何工确认过，后天我会再次…", time: "昨天", avatar: "宇", color: "#00C56C", unread: 17, mute: true, members: 12 },
+    { id: "sys:1", name: "【IPMT】QC-8 项目组", tag: "内部群", preview: "林望舒: 这版排期表你过一下，下周一前给结论…", time: "09:32", avatar: "Q", color: "#1A87FF", unread: 12, mute: true, members: 8 },
+    { id: "sys:2", name: "鹰眼 2.0 算法计划（研发）", tag: "内部群", preview: "周砚: 撤回了一条消息", time: "09:12", avatar: "Y", color: "#4D8DFF", unread: 3, mute: true, members: 24 },
+    { id: "sys:3", name: "陈亦然", preview: "只有一台", time: "昨天", avatar: "亦", color: "#8A93A0", members: 0 },
+    { id: "sys:4", name: "张与安", tag: "部门标签", preview: "因为这个题，所以我接了一个扩展坞", time: "昨天", avatar: "与", color: "#FF6B35", read: true, members: 0 },
+    { id: "sys:5", name: "海外车队加装项目组", tag: "内部群", preview: "祁远: 叠加之前核对过，后天我会再次复核…", time: "昨天", avatar: "海", color: "#00C56C", unread: 17, mute: true, members: 12 },
     { id: "sys:6", name: "罗一川,许星野,唐声远", tag: "外部群", preview: "罗一川: OK 等会给测试送过去", time: "周一", avatar: "罗", color: "#12B5CB", members: 36 }
   ];
 
