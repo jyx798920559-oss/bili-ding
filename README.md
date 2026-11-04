@@ -37,7 +37,7 @@ preview/harness.html?route=video      # 视频页单聊 + 评论区
 也可以直接把下面的 Raw 链接拖进装有 Tampermonkey 的浏览器窗口：
 
 ```text
-https://github.com/jyx798920559-oss/biliding/raw/main/biliding.user.js
+https://github.com/jyx798920559-oss/bili-ding/raw/main/biliding.user.js
 ```
 
 > ⚠️ **不要双击 `biliding.user.js`**。Windows 会用脚本宿主（wscript）打开 .js，弹出
