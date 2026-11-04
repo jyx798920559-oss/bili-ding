@@ -8,7 +8,7 @@
 param(
   [string]$Token = $env:GH_TOKEN,
   [string]$Owner = "jyx798920559-oss",
-  [string]$Repo = "bili-ding",
+  [string]$Repo = "biliding",
   [string]$Description = "B钉：把 B 站装进钉钉 / 飞书 / 企业微信的用户脚本（三合一 IM 皮肤）"
 )
 
