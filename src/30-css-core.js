@@ -256,10 +256,29 @@
   .bd-card-foot .up span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
   .bd-card-foot .sp { flex: 1; }
 
-  /* 播放器贴片 */
-  .bd-player { width: min(720px, 100%); aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden;
-    background: #000; position: relative; }
+  /* 播放器贴片（宽度可调，见 JS 里的 bindPlayerResize） */
+  .bd-player { width: min(var(--bd-player-w, 720px), 100%); aspect-ratio: 16 / 9;
+    border-radius: 8px; overflow: hidden; background: #000; position: relative; }
+  /* 太小时用 min-width 会溢出气泡，改为跟随容器压窄 */
   .bd-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* 拖右下角改宽度，aspect-ratio 自动跟高度 */
+  .bd-player-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; z-index: 4;
+    cursor: nwse-resize; touch-action: none;
+    background: linear-gradient(135deg, transparent 46%, rgba(255,255,255,.72) 46%, rgba(255,255,255,.72) 54%,
+      transparent 54%, transparent 68%, rgba(255,255,255,.72) 68%, rgba(255,255,255,.72) 76%, transparent 76%); }
+  .bd-player-hint { position: absolute; left: 8px; bottom: 8px; z-index: 3; pointer-events: none;
+    font-size: 11px; color: rgba(255,255,255,.9); background: rgba(0,0,0,.5); border-radius: 4px;
+    padding: 2px 6px; opacity: 0; transition: opacity .16s; }
+  .bd-player:hover .bd-player-hint { opacity: 1; }
+  /* 尺寸菜单 */
+  .bd-size-menu { position: fixed; z-index: 9998; min-width: 132px; padding: 6px; border-radius: 10px;
+    background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
+    animation: bd-fade .12s ease both; }
+  .bd-size-menu .it { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    height: 32px; padding: 0 10px; border-radius: 7px; font-size: 13px; color: var(--c-text); cursor: pointer; }
+  .bd-size-menu .it:hover { background: var(--c-hover); }
+  .bd-size-menu .it.on { color: var(--c-accent); font-weight: 500; }
+  .bd-size-menu .it .k { font-size: 11px; color: var(--c-text3); }
   .bd-player .poster { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     cursor: pointer; background-size: cover; background-position: center; }
   .bd-player .poster::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.4); }

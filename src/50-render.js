@@ -123,6 +123,7 @@
       '<div class="meta"><div class="name">' + esc(o.name || "") +
       (o.tag ? '<span class="im-tag">' + esc(o.tag) + '</span>' : "") + '</div>' +
       '<div class="sub">' + esc(o.sub || "") + '</div></div>' +
+      (o.extraActs || "") +
       '<div class="acts">' + acts + '</div></div>';
   }
 
@@ -437,10 +438,12 @@
     var head = chatHeaderHtml({
       name: up.name || "视频会话", tag: "UP主",
       sub: (v.tname || "视频") + " · " + fmtCount(stat.view) + "播放 · " + fmtCount(stat.danmaku) + "弹幕",
-      img: toHttp(up.face || ""), color: "#5B8DEF"
+      img: toHttp(up.face || ""), color: "#5B8DEF",
+      extraActs: '<button class="im-icon-btn" title="播放器大小" data-act="player-size">' + SVG.resize + '</button>'
     });
     var card = '<div class="bd-player"><div class="poster" style="background-image:url(' + esc(poster) + ')">' +
-      '<button class="btn">' + SVG.play + '播放视频</button></div></div>' +
+      '<button class="btn">' + SVG.play + '播放视频</button></div>' +
+      '<span class="bd-player-hint">拖右下角可调大小</span></div>' +
       '<div style="margin-top:9px;font-size:14px;font-weight:600;line-height:1.5">' + esc(v.title) + '</div>' +
       '<div class="bd-stats">' +
       '<span class="bd-stat">' + SVG.play + fmtCount(stat.view) + ' 播放</span>' +
@@ -473,12 +476,107 @@
       composerHtml("评论功能请到 B站原页面（B钉不代发）", true);
     bindChatCommon();
     bindDeco();
-    var posterEl = el.chat.querySelector(".bd-player .poster");
-    if (posterEl) {
+    var playerEl = el.chat.querySelector(".bd-player");
+    if (playerEl) {
+      bindPlayerResize(playerEl);
+      applySavedPlayerWidth(el.chat);
+      var posterEl = playerEl.querySelector(".poster");
       posterEl.addEventListener("click", function () {
-        posterEl.parentNode.innerHTML = '<iframe src="' + embed + '" allow="autoplay; fullscreen" allowfullscreen scrolling="no" frameborder="0"></iframe>';
+        posterEl.parentNode.innerHTML = '<iframe src="' + embed + '" allow="autoplay; fullscreen" allowfullscreen scrolling="no" frameborder="0"></iframe>' +
+          '<span class="bd-player-hint">拖右下角可调大小</span>';
+        // iframe 里的点击到不了外层，用可拖动的手柄代替右下角
+        var grip = document.createElement("div");
+        grip.className = "bd-player-grip";
+        playerEl.appendChild(grip);
+        bindPlayerResize(playerEl, grip);
       });
+      var sizeBtn = el.chat.querySelector('[data-act="player-size"]');
+      if (sizeBtn) {
+        sizeBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          openPlayerSizeMenu(sizeBtn);
+        });
+      }
     }
+  }
+
+  // 播放器宽度：可拖右下角、也可弹菜单选档位，结果写 localStorage
+  var PLAYER_MIN_W = 280, PLAYER_MAX_W = 1280;
+  var PLAYER_PRESETS = [
+    { label: "小", w: 480 },
+    { label: "中", w: 720 },
+    { label: "大", w: 960 },
+    { label: "自适应", w: 0 }
+  ];
+  function setPlayerWidth(px, playerEl) {
+    var root = el.root;
+    var w = Number(px) || 0;
+    if (w > 0) w = Math.min(PLAYER_MAX_W, Math.max(PLAYER_MIN_W, Math.round(w)));
+    if (w > 0) root.style.setProperty("--bd-player-w", w + "px");
+    else root.style.removeProperty("--bd-player-w");
+    lsSet(LS.playerW, String(w));
+    if (playerEl) playerEl.classList.toggle("sized", w > 0);
+    return w;
+  }
+  function applySavedPlayerWidth(scope) {
+    var w = Number(lsGet(LS.playerW, 0)) || 0;
+    if (w <= 0) return;
+    el.root.style.setProperty("--bd-player-w", w + "px");
+    if (scope) [].slice.call(scope.querySelectorAll(".bd-player")).forEach(function (p) { p.classList.add("sized"); });
+  }
+  function bindPlayerResize(playerEl, handle) {
+    var grip = handle || playerEl.querySelector(".bd-player-grip");
+    if (!grip || grip.dataset.bound) return;
+    grip.dataset.bound = "1";    var dragging = false, startX = 0, startW = 0;
+    grip.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      dragging = true; startX = e.clientX;
+      startW = playerEl.getBoundingClientRect().width;
+      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      e.preventDefault(); e.stopPropagation();
+    });
+    grip.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      setPlayerWidth(startW + e.clientX - startX, playerEl);
+    });
+    function end() {
+      if (!dragging) return;
+      dragging = false;
+      var w = Math.round(playerEl.getBoundingClientRect().width);
+      setPlayerWidth(w, playerEl);
+      toast("播放器宽度 " + w + "px，已记住");
+    }
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+  }
+  function openPlayerSizeMenu(anchor) {
+    [].slice.call(document.querySelectorAll(".bd-size-menu")).forEach(function (m) { m.remove(); });
+    var cur = Number(lsGet(LS.playerW, 0)) || 0;
+    var menu = document.createElement("div");
+    menu.className = "bd-size-menu";
+    menu.innerHTML = PLAYER_PRESETS.map(function (p) {
+      var on = p.w === 0 ? cur === 0 : Math.abs(p.w - cur) < 24;
+      return '<div class="it' + (on ? " on" : "") + '" data-w="' + p.w + '">' +
+        '<span>' + p.label + '</span><span class="k">' + (p.w ? p.w + "px" : "铺满") + '</span></div>';
+    }).join("");
+    document.body.appendChild(menu);
+    var r = anchor.getBoundingClientRect();
+    menu.style.top = Math.round(r.bottom + 4) + "px";
+    menu.style.left = Math.round(Math.min(r.left, window.innerWidth - 150)) + "px";
+    menu.addEventListener("click", function (e) {
+      var it = e.target.closest(".it");
+      if (!it) return;
+      var w = setPlayerWidth(Number(it.dataset.w), el.chat.querySelector(".bd-player"));
+      menu.remove();
+      toast(w ? "播放器宽度 " + w + "px" : "播放器宽度：自适应");
+    });
+    setTimeout(function () {
+      document.addEventListener("mousedown", function off(ev) {
+        if (menu.contains(ev.target)) return;
+        menu.remove();
+        document.removeEventListener("mousedown", off);
+      });
+    }, 0);
   }
 
   // ======================= 20. 通讯录 / 工作台 / 搜索 =======================

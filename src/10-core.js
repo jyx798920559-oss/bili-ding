@@ -23,7 +23,8 @@
     railW: "biliding-rail-width",
     navW: "biliding-nav-width",
     org: "biliding-org-name",
-    mask: "biliding-mask"
+    mask: "biliding-mask",
+    playerW: "biliding-player-width"
   };
 
   // ======================= 1. 工具 =======================
@@ -133,6 +134,7 @@
   ic("settings", '<circle cx="12" cy="12" r="3.1"/><path d="M19.4 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a1.9 1.9 0 1 1-3.8 0v-.2a1.6 1.6 0 0 0-2.8-1.1l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0-1.1-2.7h-.2a1.9 1.9 0 1 1 0-3.8h.3a1.6 1.6 0 0 0 1.1-2.8l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 2.7-1.1v-.3a1.9 1.9 0 1 1 3.8 0v.2a1.6 1.6 0 0 0 2.8 1.1l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.3a1.9 1.9 0 1 1 0 3.8h-.2a1.6 1.6 0 0 0-1.4.9Z"/>');
   ic("refresh", '<path d="M20 11.4a8 8 0 1 0-2.4 6.4"/><path d="M20 4.6v6.2h-6.2"/>');
   ic("more", '<circle cx="5.2" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.8" cy="12" r="1.5" fill="currentColor" stroke="none"/>');
+  ic("resize", '<rect x="3.4" y="4.6" width="17.2" height="14.8" rx="2.2"/><path d="M14.2 15.8l3.6-3.6M14.2 12.2v3.6h3.6"/>');
   ic("smile", '<circle cx="12" cy="12" r="8.6"/><path d="M8.6 14.2c.9 1.2 2.1 1.8 3.4 1.8s2.5-.6 3.4-1.8"/><circle cx="9.3" cy="10.1" r=".9" fill="currentColor" stroke="none"/><circle cx="14.7" cy="10.1" r=".9" fill="currentColor" stroke="none"/>');
   ic("thumb", '<path d="M7.5 20.5V9.4l4.7-5.4 1 1a3.6 3.6 0 0 1 .9 3.1l-.6 2.3h4.7a1.9 1.9 0 0 1 1.9 2.2l-1 6.6a1.9 1.9 0 0 1-1.9 1.6Z"/><path d="M7.5 9.4H3.6v11.1h3.9"/>');
   ic("at", '<circle cx="12" cy="12" r="3.8"/><path d="M15.8 8.2v4.7a2.8 2.8 0 0 0 5.6 0V12a9 9 0 1 0-3.6 7.2"/>');
