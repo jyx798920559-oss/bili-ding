@@ -18,6 +18,7 @@ const order = [
   "40-shell.js",
   "50-render.js",
   "55-player.js",
+  "57-account.js",
   "90-boot.js"
 ];
 

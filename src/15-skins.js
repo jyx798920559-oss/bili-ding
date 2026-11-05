@@ -178,5 +178,6 @@
     playerDef: null,
     playerW: 0,
     me: null,
+    isLogin: false,
     messages: {}
   };

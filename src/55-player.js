@@ -11,7 +11,11 @@
       max: 1600,
       preset: 720,
       name: "",
-      tpl: '//player.bilibili.com/player.html?bvid=__BVID__&page=__P__&high_quality=1&autoplay=0',
+      // 默认用「本站原生视频页」做同源 iframe：
+      // player.bilibili.com 是外嵌版播放器，天生只给未登录的精简清晰度，且不认本站登录态；
+      // 同源的 www.bilibili.com/video/BVxxx 走的是网页端同一套 playurl，登录后能拿到与官网一致的清晰度。
+      // autoplay=0 & muted=1 抑制自动播放噪音；danmaku 关掉避免和聊天区抢视线。
+      tpl: '//www.bilibili.com/video/__BVID__/?page=__P__&autoplay=0&danmaku=0&high_quality=1',
       cn: 1
     };
   }
@@ -189,8 +193,8 @@
   }
 
   // ---------- 播放源 ----------
-  // 站点自带的播放器组件源码里就有 player.bilibili.com 的 iframe。
-  // 建一个同源 iframe 放进去，再把这个片段搬进聊天卡：播放器本身的清晰度 / 登录态 / 弹幕 / 全屏全部保留。
+  // 站点自带的播放器组件源码里就有 player.html 的 iframe 痕迹。
+  // 这里不再沿用外嵌播放器地址，只保留原来的「识别站点播放器」副作用，tpl 始终用 playerDefaults() 的同源视频页。
   function findSitePlayerTpl() {
     try {
       var out = [];

@@ -300,9 +300,11 @@
     } catch (e) { /* ignore */ }
   }
   // 右键菜单：把「复制视频地址 / 统计信息 / 检查元素」里的品牌字样盖掉
+  // 皮肤临时关闭时不拦右键，否则原站和登录页的正常操作会受影响。
   function installContextMenuGuard() {
     if (MOCK) return;
     document.addEventListener("contextmenu", function (e) {
+      if (typeof SKIN_OFF !== "undefined" && SKIN_OFF) return;
       if (e.target.closest && e.target.closest("#biliding-root")) return;
       e.preventDefault();
     }, true);
@@ -487,6 +489,7 @@
     playerDef: null,
     playerW: 0,
     me: null,
+    isLogin: false,
     messages: {}
   };
   // ======================= 6. 网络层 =======================
@@ -634,7 +637,7 @@
   }
   /* 隐藏原站页面：用 visibility:hidden 而不是 display:none（B站脚本会读元素尺寸，display:none 会抛错）。
      浮层（皮肤菜单 / 尺寸菜单 / 标题框）必须显式放行，否则会被这条规则一起藏掉。 */
-  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap):not(.im-skin-menu):not(.bd-size-menu):not(.bd-title-dlg) {
+  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap):not(.im-skin-menu):not(.bd-size-menu):not(.bd-title-dlg):not(.bd-login-dlg):not(.bd-restore-btn) {
     visibility: hidden !important; pointer-events: none !important;
   }
 
@@ -1017,6 +1020,32 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .im-win.menu-open { background: var(--c-hover); color: var(--c-text); }
 
+  /* 登录入口：未登录时亮一颗小红点，登录后隐藏 */
+  .im-win .login-dot { display: block; width: 7px; height: 7px; border-radius: 50%;
+    background: #F5222D; box-shadow: 0 0 0 2px var(--c-title); }
+  .im-win[data-act="login"].on .login-dot { background: var(--c-text4); box-shadow: none; }
+
+  /* 登录说明浮层 */
+  .bd-login-dlg { position: fixed; z-index: 10001; width: 340px; padding: 16px 16px 12px; border-radius: 12px;
+    background: var(--c-panel, #fff); border: 1px solid var(--c-line, #E2E6EE);
+    box-shadow: 0 16px 44px rgba(17,24,39,.22); animation: bd-fade .14s ease both; color: var(--c-text, #1F2329); }
+  .bd-login-dlg .hd { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .bd-login-dlg .st { font-size: 13px; line-height: 1.65; color: var(--c-text2, #4A4F57); }
+  .bd-login-dlg .st b { color: var(--c-accent, #1A7AF8); }
+  .bd-login-dlg .tip { margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--c-text3, #86909C); }
+  .bd-login-dlg .ft { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .bd-login-dlg button { height: 30px; padding: 0 14px; border-radius: 7px; border: 0; cursor: pointer;
+    font-size: 12.5px; font-family: inherit; }
+  .bd-login-dlg button.ghost { background: transparent; color: var(--c-text2, #4A4F57);
+    border: 1px solid var(--c-line, #E2E6EE); }
+  .bd-login-dlg button.ok { background: var(--c-accent, #1A7AF8); color: #fff; }
+
+  /* 皮肤临时关闭时的「恢复」按钮：不依赖皮肤根节点，必须自己活着 */
+  .bd-restore-btn { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000;
+    height: 34px; padding: 0 16px; border-radius: 8px; border: 0; cursor: pointer;
+    background: #1A7AF8; color: #fff; font-size: 12.5px; font-family: inherit;
+    box-shadow: 0 8px 24px rgba(26,122,248,.36); }
+
   /* toast */
   .im-toast-wrap { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 9999;
     display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
@@ -1253,13 +1282,23 @@
     --c-send-off: #363A41;
   }
 
-  /* 企业微信没有独立标题栏，顶栏收进 rail / 列表 */
+  /* 企业微信 5.x 本体没有独立标题栏，但「切换皮肤 / 深色 / 会议背景」必须可达：
+     标题栏本体（默认整个 #FFFFFF 顶栏）照旧隐藏，这三个键被克隆到 .im-tb-wins 浮层，
+     绝对定位在 rail 顶部 org 行的右侧空白处，不占额外高度。 */
   .im-shell[data-skin="wecom"] .im-titlebar { display: none; }
   .im-shell[data-skin="wecom"] .im-body { padding-top: 0; }
+  .im-shell[data-skin="wecom"] .im-rail { position: relative; }
+  .im-tb-wins { position: absolute; top: 15px; right: 10px; display: flex; align-items: center;
+    gap: 1px; z-index: 21; border-radius: 6px; background: var(--c-rail); }
+  .im-tb-wins .im-win { width: 22px; height: 22px; }
+  .im-tb-wins .im-win svg { width: 13px; height: 13px; }
 
   /* rail：选中项是蓝色实心，图标与文字转白 */
   .im-shell[data-skin="wecom"] .im-rail { border-right: 1px solid var(--c-line-weak); }
   .im-shell[data-skin="wecom"] .im-org { padding: 12px 12px 10px; }
+  /* rail 只有 168px：右上三枚功能键占掉约 70px，org 行右侧留出空间，避免名字被压成省略号 */
+  .im-shell[data-skin="wecom"] .im-org { padding-right: 76px; }
+  .im-shell[data-skin="wecom"] .im-org-meta { overflow: hidden; }
   .im-shell[data-skin="wecom"] .im-org-logo { background: linear-gradient(135deg,#4096FF,#1769D2); color: #fff; }
   .im-shell[data-skin="wecom"] .im-rail-item { height: 38px; border-radius: 6px; }
   .im-shell[data-skin="wecom"] .im-rail-item.on { color: #fff; }
@@ -1287,6 +1326,23 @@
   // ======================= 13. DOM 骨架 =======================
   var el = {};
 
+  // 功能键（标题栏与企微侧栏浮层共用同一份定义，避免两处各写一遍导致漏键）
+  function winButtonsHtml() {
+    return [
+      '<button class="im-win" data-act="skin" title="切换皮肤">' + SVG.skin + '</button>',
+      '<button class="im-win" data-act="login" title="登录 / 账号"><span class="login-dot"></span></button>',
+      '<button class="im-win" data-act="blur" title="会议背景（模糊本页）">' + SVG.wall + '</button>',
+      '<button class="im-win" data-act="dark" title="深色/浅色">' + (state.dark ? SVG.sun : SVG.moon) + '</button>'
+    ].join("");
+  }
+  function winButtonsFullHtml() {
+    return winButtonsHtml() +
+      '<span class="im-tb-sep"></span>' +
+      '<button class="im-win" data-act="win-min" title="最小化">' + SVG.min + '</button>' +
+      '<button class="im-win" data-act="win-max" title="最大化">' + SVG.max + '</button>' +
+      '<button class="im-win close" data-act="win-close" title="关闭">' + SVG.close + '</button>';
+  }
+
   function titlebarHtml() {
     var sk = skin();
     if (!sk.titlebar) return "";
@@ -1300,14 +1356,21 @@
       '  <div class="im-tb-center"><div class="im-tb-search">' + SVG.search +
       '<input type="search" data-act="global-search" placeholder="搜索或提问（Ctrl+Shift+F）" aria-label="搜索"></div></div>',
       '  <div class="im-tb-right">',
-      '    <button class="im-win" data-act="skin" title="切换皮肤">' + SVG.skin + '</button>',
-      '    <button class="im-win" data-act="blur" title="会议背景（模糊本页）">' + SVG.wall + '</button>',
-      '    <button class="im-win" data-act="dark" title="深色/浅色">' + (state.dark ? SVG.sun : SVG.moon) + '</button>',
-      '    <span class="im-tb-sep"></span>',
-      '    <button class="im-win" data-act="win-min" title="最小化">' + SVG.min + '</button>',
-      '    <button class="im-win" data-act="win-max" title="最大化">' + SVG.max + '</button>',
-      '    <button class="im-win close" data-act="win-close" title="关闭">' + SVG.close + '</button>',
+      winButtonsFullHtml(),
       '  </div>',
+      '</div>'
+    ].join("");
+  }
+
+  // 企业微信皮肤用 CSS 把整条标题栏 display:none，而「切换皮肤」等按钮只在标题栏里，
+  // 结果企业微信皮肤下换皮肤入口不可达。这里把这几个功能键复制一份浮到 rail 顶部。
+  // 注意判断依据是皮肤 id 而不是 sk.titlebar——三套皮肤 titlebar 都是 true，差别只在 CSS。
+  function railWinsHtml() {
+    var sk = skin();
+    if (sk.id !== "wecom") return "";
+    return [
+      '<div class="im-tb-wins">',
+      winButtonsHtml(),
       '</div>'
     ].join("");
   }
@@ -1333,6 +1396,7 @@
     }
     return [
       '<div class="im-rail">',
+      railWinsHtml(),
       '  <div class="im-org" title="' + esc(sk.org) + '">',
       '    <div class="im-org-logo">云</div>',
       '    <div class="im-org-meta"><div class="im-org-name">' + esc(sk.org) + '</div>' +
@@ -1467,6 +1531,10 @@
       var t = e.target;
       var skinBtn = t.closest && t.closest('[data-act="skin"]');
       if (skinBtn) { openSkinMenu(skinBtn); return; }
+      var loginBtn = t.closest && t.closest('[data-act="login"]');
+      if (loginBtn) { openLoginDialog(); return; }
+      var meBtn = t.closest && t.closest(".im-me");
+      if (meBtn) { openLoginDialog(); return; }
       var darkBtn = t.closest && t.closest('[data-act="dark"]');
       if (darkBtn) { toggleDark(); return; }
       var winBtn = t.closest && t.closest('[data-act^="win-"]');
@@ -2362,7 +2430,11 @@
       max: 1600,
       preset: 720,
       name: "",
-      tpl: '//player.bilibili.com/player.html?bvid=__BVID__&page=__P__&high_quality=1&autoplay=0',
+      // 默认用「本站原生视频页」做同源 iframe：
+      // player.bilibili.com 是外嵌版播放器，天生只给未登录的精简清晰度，且不认本站登录态；
+      // 同源的 www.bilibili.com/video/BVxxx 走的是网页端同一套 playurl，登录后能拿到与官网一致的清晰度。
+      // autoplay=0 & muted=1 抑制自动播放噪音；danmaku 关掉避免和聊天区抢视线。
+      tpl: '//www.bilibili.com/video/__BVID__/?page=__P__&autoplay=0&danmaku=0&high_quality=1',
       cn: 1
     };
   }
@@ -2540,8 +2612,8 @@
   }
 
   // ---------- 播放源 ----------
-  // 站点自带的播放器组件源码里就有 player.bilibili.com 的 iframe。
-  // 建一个同源 iframe 放进去，再把这个片段搬进聊天卡：播放器本身的清晰度 / 登录态 / 弹幕 / 全屏全部保留。
+  // 站点自带的播放器组件源码里就有 player.html 的 iframe 痕迹。
+  // 这里不再沿用外嵌播放器地址，只保留原来的「识别站点播放器」副作用，tpl 始终用 playerDefaults() 的同源视频页。
   function findSitePlayerTpl() {
     try {
       var out = [];
@@ -2672,6 +2744,153 @@
       if (e.key === "Escape") { dlg.remove(); }
     });
   }
+  // ======================= 18.7 登录态 / 临时关闭皮肤 =======================
+  // 为什么要这一节：
+  // 1) 播放器如果嵌 player.bilibili.com/player.html，那是「外嵌版」播放器，它本来就只给未登录的精简清晰度；
+  // 2) 想登录就得去 passport，但皮肤把原站整页藏掉了，登录成功后页面看不见、也没法用原生播放器；
+  // 3) 所以这里补两件事：能查登录态，以及能「临时关闭皮肤」回到原站，登录完再切回来。
+
+  var LS_SKIN_OFF = "biliding-skin-off";
+  var LOGIN_URL = "https://passport.bilibili.com/login?gourl=" + encodeURIComponent(location.href.split("#")[0]);
+
+  // 登录态：走 nav 接口（fetchJson 已带 credentials，能读到站点 cookie）
+  function refreshAccount() {
+    if (MOCK) { applyAccount(MOCK.me); return; }
+    fetchJson(API + "/x/web-interface/nav").then(function (j) {
+      var d = (j && j.data) || {};
+      applyAccount(d.isLogin && d.face ? { name: d.uname, face: toHttp(d.face), mid: d.mid } : null);
+    }).catch(function () { applyAccount(null); });
+  }
+  function applyAccount(me) {
+    state.me = me || null;
+    state.isLogin = !!(me && me.name);
+    paintMe();
+    paintLoginEntry();
+  }
+
+  // 右上角/侧栏的「登录」入口：未登录时高亮，已登录时显示账号
+  function paintLoginEntry() {
+    if (!el.root) return;
+    var name = state.me && state.me.name ? state.me.name : "";
+    [].slice.call(el.root.querySelectorAll('[data-act="login"]')).forEach(function (b) {
+      b.classList.toggle("on", !!state.isLogin);
+      b.setAttribute("title", state.isLogin ? ("已登录：" + name + "（点此查看登录说明）") : "未登录：点此登录（清晰度受限）");
+    });
+  }
+
+  // 登录说明浮层：passport 不允许被 iframe 嵌（X-Frame-Options），
+  // 所以这里不嵌登录页，而是给一个明确的跳转按钮 + 登录后切回来的指引。
+  function openLoginDialog() {
+    [].slice.call(document.querySelectorAll(".bd-login-dlg")).forEach(function (m) { m.remove(); });
+    var dlg = document.createElement("div");
+    dlg.className = "bd-login-dlg";
+    var who = state.isLogin && state.me && state.me.name ? state.me.name : "";
+    dlg.innerHTML = '<div class="hd">' + (state.isLogin ? "账号与清晰度" : "登录后才能看高清") + '</div>' +
+      '<div class="st">' + (state.isLogin
+        ? '当前已登录 <b>' + esc(who) + '</b>，视频按网页端同款线路播放。'
+        : '未登录时播放器只提供精简清晰度（约 360P/480P），且部分视频会提示登录。') + '</div>' +
+      '<div class="tip">B站的登录页禁止被其它页面内嵌，所以登录要在新标签页里完成。' +
+      '登录成功回到本站后，皮肤会自动感知到登录态。</div>' +
+      '<div class="ft">' +
+      '<button class="ghost" data-do="off">临时关闭皮肤</button>' +
+      '<button class="ok" data-do="go">' + (state.isLogin ? "重新登录" : "打开登录页") + '</button>' +
+      '</div>';
+    document.body.appendChild(dlg);
+    centerDialog(dlg);
+    dlg.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-do]");
+      if (!b) return;
+      if (b.dataset.do === "go") {
+        try { window.open(LOGIN_URL, "_blank"); } catch (err) { toast("浏览器拦截了新标签"); }
+        toast("登录完成后回到本页，皮肤会自动识别登录态");
+      } else if (b.dataset.do === "off") {
+        skinOn(false, true);
+      }
+      dlg.remove();
+    });
+  }
+
+  function centerDialog(dlg) {
+    var cs = el.root ? getComputedStyle(el.root) : null;
+    if (cs) {
+      dlg.style.setProperty("--c-panel", cs.getPropertyValue("--c-panel") || "#fff");
+      dlg.style.setProperty("--c-line", cs.getPropertyValue("--c-line") || "#E2E6EE");
+      dlg.style.setProperty("--c-text", cs.getPropertyValue("--c-text") || "#1F2329");
+      dlg.style.setProperty("--c-text3", cs.getPropertyValue("--c-text3") || "#86909C");
+      dlg.style.setProperty("--c-accent", cs.getPropertyValue("--c-accent") || "#1A7AF8");
+    }
+  }
+
+  // ---------- 临时关闭皮肤（逃生通道） ----------
+  // 关掉之后：原站恢复可见、可点、可右键，B站自己的播放器和登录流程都能正常用。
+  var SKIN_OFF = lsGet(LS_SKIN_OFF, "0") === "1";
+
+  function skinOn(on, persist) {
+    SKIN_OFF = !on;
+    if (persist) lsSet(LS_SKIN_OFF, SKIN_OFF ? "1" : "0");
+    applySkinOff();
+    toast(SKIN_OFF ? "皮肤已临时关闭，登录 / 高清播放请用原站；按 Ctrl+Shift+L 或点右下角按钮可恢复"
+                   : "皮肤已恢复");
+  }
+
+  function applySkinOff() {
+    var html = document.documentElement;
+    if (SKIN_OFF) {
+      html.classList.remove(ROOT_CLASS);
+      html.classList.remove(DARK_CLASS);
+    } else {
+      html.classList.add(ROOT_CLASS);
+      applyDark();
+    }
+    // 原站节点：皮肤开时用 visibility:hidden 藏起来，关时恢复
+    var kids = document.body ? document.body.children : [];
+    for (var i = 0; i < kids.length; i++) {
+      var n = kids[i];
+      if (!n.id || n.id === "biliding-root") continue;
+      if (n.tagName === "SCRIPT" || n.tagName === "STYLE") continue;
+      if (n.classList && (n.classList.contains("im-toast-wrap") || n.classList.contains("bd-restore-btn"))) continue;
+      n.style.visibility = SKIN_OFF ? "" : "hidden";
+      n.style.pointerEvents = SKIN_OFF ? "" : "none";
+    }
+    if (SKIN_OFF) {
+      // 皮肤根节点也藏掉，避免挡住原站
+      if (el.root) el.root.style.display = "none";
+      if (el.toastWrap) el.toastWrap.style.display = "none";
+      ensureRestoreButton(true);
+    } else {
+      if (el.root) el.root.style.display = "";
+      if (el.toastWrap) el.toastWrap.style.display = "";
+      ensureRestoreButton(false);
+    }
+  }
+
+  // 皮肤关着的时候，得留一个能点回来的入口（fixed 小按钮，不依赖皮肤）
+  var restoreBtn = null;
+  function ensureRestoreButton(show) {
+    if (!show) {
+      if (restoreBtn) { restoreBtn.remove(); restoreBtn = null; }
+      return;
+    }
+    if (restoreBtn || !document.body) return;
+    var b = document.createElement("button");
+    b.className = "bd-restore-btn";
+    b.type = "button";
+    b.textContent = "恢复 B钉 皮肤";
+    b.title = "Ctrl+Shift+L";
+    b.addEventListener("click", function () { skinOn(true, true); });
+    document.body.appendChild(b);
+    restoreBtn = b;
+  }
+
+  // 快捷键：Ctrl+Shift+L 开关皮肤（和浏览器地址栏 Focus 冲突的可能性最低）
+  function bindSkinOffHotkey() {
+    document.addEventListener("keydown", function (e) {
+      if (!e.ctrlKey || !e.shiftKey || e.altKey) return;
+      if (String(e.key).toLowerCase() !== "l" && e.code !== "KeyL") return;
+      e.preventDefault();
+      skinOn(SKIN_OFF, true);
+    }, true);
+  }
   // ======================= 22. 启动 =======================
   var CSS = CSS_CORE + CSS_DING + CSS_FEISHU + CSS_WECOM;
 
@@ -2685,24 +2904,13 @@
     s.textContent = CSS;
   }
 
-  function loadMe() {
-    if (MOCK && MOCK.me) {
-      state.me = MOCK.me;
-      paintMe();
-      return;
-    }
-    fetchJson(API + "/x/web-interface/nav").then(function (j) {
-      var d = (j && j.data) || {};
-      if (d.isLogin && d.face) {
-        state.me = { name: d.uname, face: toHttp(d.face) };
-      }
-      paintMe();
-    }).catch(function () { paintMe(); });
-  }
+  // 登录态查询统一走 refreshAccount（57-account.js），这里保留 loadMe 名字供既有调用点使用
+  function loadMe() { refreshAccount(); }
 
   function paintMe() {
     var box = el.root && el.root.querySelector(".im-me");
     if (!box) return;
+    state.isLogin = !!(state.me && state.me.name);
     if (state.me && state.me.face) {
       box.innerHTML = '<img src="' + esc(state.me.face) + '" alt="" referrerpolicy="no-referrer">';
     } else {
@@ -2710,6 +2918,7 @@
     }
     var st = el.root.querySelector(".im-tb-status b");
     if (st && state.me && state.me.name) st.textContent = state.me.name;
+    if (typeof paintLoginEntry === "function") paintLoginEntry();
   }
 
   // 冒泡阶段拦截 <a> 点击：页面自己的处理器先跑，再阻止整页跳转
@@ -2759,21 +2968,29 @@
   function start() {
     if (started) return;
     started = true;
-    document.documentElement.classList.add(ROOT_CLASS);
-    applyDark();
+    // 先把皮肤关/开的状态定下来：若是「临时关闭」状态，原站要原样放出来，
+    // 不能先 hideOriginalPage() 再补救（那样原站会被藏掉一拍，登录页就白跳了）。
+    if (SKIN_OFF) {
+      document.documentElement.classList.remove(ROOT_CLASS);
+    } else {
+      document.documentElement.classList.add(ROOT_CLASS);
+      applyDark();
+    }
     injectStyle();
     paintFavicon();
     installTitleObserver();
     syncTitle(true);
-    if (!MOCK) hideOriginalPage();
+    if (!MOCK && !SKIN_OFF) hideOriginalPage();
     buildShell();
+    bindSkinOffHotkey();
     bindLinkIntercept();
     hookHistory();
-    loadMe();
+    refreshAccount();
     applyRoute();
     findSitePlayerTpl();
     refreshPlayerVars();
     setBlur(state.blur);
+    if (SKIN_OFF) applySkinOff();
     window.addEventListener("resize", function () { if (el.root) refreshPlayerVars(); });
     if (!MOCK) {
       var lastHref = location.href;
@@ -2788,6 +3005,7 @@
   }
 
   function hideOriginalPage() {
+    if (SKIN_OFF) return;
     if (!document.body) {
       document.addEventListener("DOMContentLoaded", hideOriginalPage, { once: true });
       return;

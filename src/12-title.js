@@ -85,9 +85,11 @@
     } catch (e) { /* ignore */ }
   }
   // 右键菜单：把「复制视频地址 / 统计信息 / 检查元素」里的品牌字样盖掉
+  // 皮肤临时关闭时不拦右键，否则原站和登录页的正常操作会受影响。
   function installContextMenuGuard() {
     if (MOCK) return;
     document.addEventListener("contextmenu", function (e) {
+      if (typeof SKIN_OFF !== "undefined" && SKIN_OFF) return;
       if (e.target.closest && e.target.closest("#biliding-root")) return;
       e.preventDefault();
     }, true);

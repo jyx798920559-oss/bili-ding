@@ -1,6 +1,23 @@
   // ======================= 13. DOM 骨架 =======================
   var el = {};
 
+  // 功能键（标题栏与企微侧栏浮层共用同一份定义，避免两处各写一遍导致漏键）
+  function winButtonsHtml() {
+    return [
+      '<button class="im-win" data-act="skin" title="切换皮肤">' + SVG.skin + '</button>',
+      '<button class="im-win" data-act="login" title="登录 / 账号"><span class="login-dot"></span></button>',
+      '<button class="im-win" data-act="blur" title="会议背景（模糊本页）">' + SVG.wall + '</button>',
+      '<button class="im-win" data-act="dark" title="深色/浅色">' + (state.dark ? SVG.sun : SVG.moon) + '</button>'
+    ].join("");
+  }
+  function winButtonsFullHtml() {
+    return winButtonsHtml() +
+      '<span class="im-tb-sep"></span>' +
+      '<button class="im-win" data-act="win-min" title="最小化">' + SVG.min + '</button>' +
+      '<button class="im-win" data-act="win-max" title="最大化">' + SVG.max + '</button>' +
+      '<button class="im-win close" data-act="win-close" title="关闭">' + SVG.close + '</button>';
+  }
+
   function titlebarHtml() {
     var sk = skin();
     if (!sk.titlebar) return "";
@@ -14,14 +31,21 @@
       '  <div class="im-tb-center"><div class="im-tb-search">' + SVG.search +
       '<input type="search" data-act="global-search" placeholder="搜索或提问（Ctrl+Shift+F）" aria-label="搜索"></div></div>',
       '  <div class="im-tb-right">',
-      '    <button class="im-win" data-act="skin" title="切换皮肤">' + SVG.skin + '</button>',
-      '    <button class="im-win" data-act="blur" title="会议背景（模糊本页）">' + SVG.wall + '</button>',
-      '    <button class="im-win" data-act="dark" title="深色/浅色">' + (state.dark ? SVG.sun : SVG.moon) + '</button>',
-      '    <span class="im-tb-sep"></span>',
-      '    <button class="im-win" data-act="win-min" title="最小化">' + SVG.min + '</button>',
-      '    <button class="im-win" data-act="win-max" title="最大化">' + SVG.max + '</button>',
-      '    <button class="im-win close" data-act="win-close" title="关闭">' + SVG.close + '</button>',
+      winButtonsFullHtml(),
       '  </div>',
+      '</div>'
+    ].join("");
+  }
+
+  // 企业微信皮肤用 CSS 把整条标题栏 display:none，而「切换皮肤」等按钮只在标题栏里，
+  // 结果企业微信皮肤下换皮肤入口不可达。这里把这几个功能键复制一份浮到 rail 顶部。
+  // 注意判断依据是皮肤 id 而不是 sk.titlebar——三套皮肤 titlebar 都是 true，差别只在 CSS。
+  function railWinsHtml() {
+    var sk = skin();
+    if (sk.id !== "wecom") return "";
+    return [
+      '<div class="im-tb-wins">',
+      winButtonsHtml(),
       '</div>'
     ].join("");
   }
@@ -57,6 +81,7 @@
       '  <div class="im-rail-tail">',
       '    <button class="im-rail-item" data-act="collapse">' + SVG.back + '<span>收起</span></button>',
       '    <button class="im-rail-item" data-act="more">' + SVG.more + '<span>更多</span></button>',
+      railWinsHtml(),
       '  </div>',
       '</div>'
     ].join("");
@@ -181,6 +206,10 @@
       var t = e.target;
       var skinBtn = t.closest && t.closest('[data-act="skin"]');
       if (skinBtn) { openSkinMenu(skinBtn); return; }
+      var loginBtn = t.closest && t.closest('[data-act="login"]');
+      if (loginBtn) { openLoginDialog(); return; }
+      var meBtn = t.closest && t.closest(".im-me");
+      if (meBtn) { openLoginDialog(); return; }
       var darkBtn = t.closest && t.closest('[data-act="dark"]');
       if (darkBtn) { toggleDark(); return; }
       var winBtn = t.closest && t.closest('[data-act^="win-"]');

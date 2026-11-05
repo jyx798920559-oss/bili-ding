@@ -11,7 +11,7 @@
   }
   /* 隐藏原站页面：用 visibility:hidden 而不是 display:none（B站脚本会读元素尺寸，display:none 会抛错）。
      浮层（皮肤菜单 / 尺寸菜单 / 标题框）必须显式放行，否则会被这条规则一起藏掉。 */
-  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap):not(.im-skin-menu):not(.bd-size-menu):not(.bd-title-dlg) {
+  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap):not(.im-skin-menu):not(.bd-size-menu):not(.bd-title-dlg):not(.bd-login-dlg):not(.bd-restore-btn) {
     visibility: hidden !important; pointer-events: none !important;
   }
 
@@ -393,6 +393,32 @@
   .im-skin-menu .ttl { font-size: 12px; color: var(--c-text2); padding: 0 10px 6px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .im-win.menu-open { background: var(--c-hover); color: var(--c-text); }
+
+  /* 登录入口：未登录时亮一颗小红点，登录后隐藏 */
+  .im-win .login-dot { display: block; width: 7px; height: 7px; border-radius: 50%;
+    background: #F5222D; box-shadow: 0 0 0 2px var(--c-title); }
+  .im-win[data-act="login"].on .login-dot { background: var(--c-text4); box-shadow: none; }
+
+  /* 登录说明浮层 */
+  .bd-login-dlg { position: fixed; z-index: 10001; width: 340px; padding: 16px 16px 12px; border-radius: 12px;
+    background: var(--c-panel, #fff); border: 1px solid var(--c-line, #E2E6EE);
+    box-shadow: 0 16px 44px rgba(17,24,39,.22); animation: bd-fade .14s ease both; color: var(--c-text, #1F2329); }
+  .bd-login-dlg .hd { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .bd-login-dlg .st { font-size: 13px; line-height: 1.65; color: var(--c-text2, #4A4F57); }
+  .bd-login-dlg .st b { color: var(--c-accent, #1A7AF8); }
+  .bd-login-dlg .tip { margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--c-text3, #86909C); }
+  .bd-login-dlg .ft { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .bd-login-dlg button { height: 30px; padding: 0 14px; border-radius: 7px; border: 0; cursor: pointer;
+    font-size: 12.5px; font-family: inherit; }
+  .bd-login-dlg button.ghost { background: transparent; color: var(--c-text2, #4A4F57);
+    border: 1px solid var(--c-line, #E2E6EE); }
+  .bd-login-dlg button.ok { background: var(--c-accent, #1A7AF8); color: #fff; }
+
+  /* 皮肤临时关闭时的「恢复」按钮：不依赖皮肤根节点，必须自己活着 */
+  .bd-restore-btn { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000;
+    height: 34px; padding: 0 16px; border-radius: 8px; border: 0; cursor: pointer;
+    background: #1A7AF8; color: #fff; font-size: 12.5px; font-family: inherit;
+    box-shadow: 0 8px 24px rgba(26,122,248,.36); }
 
   /* toast */
   .im-toast-wrap { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 9999;

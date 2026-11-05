@@ -11,24 +11,13 @@
     s.textContent = CSS;
   }
 
-  function loadMe() {
-    if (MOCK && MOCK.me) {
-      state.me = MOCK.me;
-      paintMe();
-      return;
-    }
-    fetchJson(API + "/x/web-interface/nav").then(function (j) {
-      var d = (j && j.data) || {};
-      if (d.isLogin && d.face) {
-        state.me = { name: d.uname, face: toHttp(d.face) };
-      }
-      paintMe();
-    }).catch(function () { paintMe(); });
-  }
+  // 登录态查询统一走 refreshAccount（57-account.js），这里保留 loadMe 名字供既有调用点使用
+  function loadMe() { refreshAccount(); }
 
   function paintMe() {
     var box = el.root && el.root.querySelector(".im-me");
     if (!box) return;
+    state.isLogin = !!(state.me && state.me.name);
     if (state.me && state.me.face) {
       box.innerHTML = '<img src="' + esc(state.me.face) + '" alt="" referrerpolicy="no-referrer">';
     } else {
@@ -36,6 +25,7 @@
     }
     var st = el.root.querySelector(".im-tb-status b");
     if (st && state.me && state.me.name) st.textContent = state.me.name;
+    if (typeof paintLoginEntry === "function") paintLoginEntry();
   }
 
   // 冒泡阶段拦截 <a> 点击：页面自己的处理器先跑，再阻止整页跳转
@@ -85,21 +75,29 @@
   function start() {
     if (started) return;
     started = true;
-    document.documentElement.classList.add(ROOT_CLASS);
-    applyDark();
+    // 先把皮肤关/开的状态定下来：若是「临时关闭」状态，原站要原样放出来，
+    // 不能先 hideOriginalPage() 再补救（那样原站会被藏掉一拍，登录页就白跳了）。
+    if (SKIN_OFF) {
+      document.documentElement.classList.remove(ROOT_CLASS);
+    } else {
+      document.documentElement.classList.add(ROOT_CLASS);
+      applyDark();
+    }
     injectStyle();
     paintFavicon();
     installTitleObserver();
     syncTitle(true);
-    if (!MOCK) hideOriginalPage();
+    if (!MOCK && !SKIN_OFF) hideOriginalPage();
     buildShell();
+    bindSkinOffHotkey();
     bindLinkIntercept();
     hookHistory();
-    loadMe();
+    refreshAccount();
     applyRoute();
     findSitePlayerTpl();
     refreshPlayerVars();
     setBlur(state.blur);
+    if (SKIN_OFF) applySkinOff();
     window.addEventListener("resize", function () { if (el.root) refreshPlayerVars(); });
     if (!MOCK) {
       var lastHref = location.href;
@@ -114,6 +112,7 @@
   }
 
   function hideOriginalPage() {
+    if (SKIN_OFF) return;
     if (!document.body) {
       document.addEventListener("DOMContentLoaded", hideOriginalPage, { once: true });
       return;

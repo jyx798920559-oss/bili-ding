@@ -39,13 +39,23 @@
     --c-send-off: #363A41;
   }
 
-  /* 企业微信没有独立标题栏，顶栏收进 rail / 列表 */
+  /* 企业微信 5.x 本体没有独立标题栏，但「切换皮肤 / 登录 / 深色 / 会议背景」必须可达：
+     标题栏本体照旧隐藏，这几个键被克隆成 .im-tb-wins 浮层。
+     浮层贴在 rail 底部（在「收起 / 更多」下方，按钮是横排），不去挤顶部 org 行——
+     rail 只有 168px，4 个键横排塞进 org 行会把组织名压没。 */
   .im-shell[data-skin="wecom"] .im-titlebar { display: none; }
   .im-shell[data-skin="wecom"] .im-body { padding-top: 0; }
+  .im-shell[data-skin="wecom"] .im-rail-tail { padding-bottom: 6px; }
+  .im-tb-wins { position: static; display: flex; align-items: center; justify-content: center;
+    gap: 2px; margin: 4px 8px 2px; padding: 4px 0; border-radius: 8px;
+    background: var(--c-rail); border: 1px solid var(--c-line-weak); }
+  .im-tb-wins .im-win { width: 28px; height: 24px; }
+  .im-tb-wins .im-win svg { width: 14px; height: 14px; }
 
   /* rail：选中项是蓝色实心，图标与文字转白 */
   .im-shell[data-skin="wecom"] .im-rail { border-right: 1px solid var(--c-line-weak); }
   .im-shell[data-skin="wecom"] .im-org { padding: 12px 12px 10px; }
+  .im-shell[data-skin="wecom"] .im-org-meta { overflow: hidden; }
   .im-shell[data-skin="wecom"] .im-org-logo { background: linear-gradient(135deg,#4096FF,#1769D2); color: #fff; }
   .im-shell[data-skin="wecom"] .im-rail-item { height: 38px; border-radius: 6px; }
   .im-shell[data-skin="wecom"] .im-rail-item.on { color: #fff; }
