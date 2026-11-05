@@ -62,6 +62,8 @@
   }
   window.__BILIDING_MOCK__ = {
     route: { kind: "home", key: "home" },
+    // 预览图里聊天区只占右侧一段，播放器放大到 700 左右才不会把版式撑开
+    chatMax: 700,
     me: null,
     handle: function (url) {
       if (url.indexOf("nav") >= 0) return { code: -101, message: "未登录" };

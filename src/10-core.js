@@ -8,14 +8,16 @@
   // 本地预览（file:// 打开 harness 页面）时通过 window.__BILIDING_MOCK__ 注入假数据，
   // 该全局只可能由使用者自己在本机页面里设置，正式站点不会存在。
   var MOCK = window.__BILIDING_MOCK__ || null;
+  // 预览页用 file:// 打开，同目录的脚本也不算「非目标站点」
+  var IS_PREVIEW = /^file:$/.test(location.protocol);
   if (!IS_TOP) return;
-  if (!MOCK && !/^www\.bilibili\.com$|^search\.bilibili\.com$/.test(HOST)) return;
-
+  if (!MOCK && !IS_PREVIEW && !/^www\.bilibili\.com$|^search\.bilibili\.com$/.test(HOST)) return;
   var ROOT_CLASS = "im-theme";
   var DARK_CLASS = "im-dark";
   var STYLE_ID = "biliding-style";
   var FAVICON_ID = "biliding-favicon";
   var LS = {
+    title: "biliding-title-custom",
     skin: "biliding-skin",
     dark: "biliding-dark",
     mode: "biliding-color-mode",
@@ -24,7 +26,8 @@
     navW: "biliding-nav-width",
     org: "biliding-org-name",
     mask: "biliding-mask",
-    playerW: "biliding-player-width"
+    playerW: "biliding-player-width",
+    blur: "biliding-page-blur"
   };
 
   // ======================= 1. 工具 =======================
@@ -163,6 +166,12 @@
   ic("chevright", '<path d="m10 7 5 5-5 5"/>');
   ic("pin", '<path d="M9 3.6h6l-.7 5.2 3.5 3v1.6H6.2v-1.6l3.5-3Z"/><path d="M12 13.4v7"/>');
   ic("play", '<circle cx="12" cy="12" r="8.6"/><path d="M10.2 8.8 16 12l-5.8 3.2Z" fill="currentColor" stroke="none"/>');
+  ic("play-tri", '<path d="M8.2 5.4 18.6 12 8.2 18.6Z" fill="currentColor" stroke="none"/>');
+  ic("expand", '<path d="M9 3.8H3.8V9M15 3.8h5.2V9M9 20.2H3.8V15M15 20.2h5.2V15"/>');
+  ic("shrink", '<path d="M3.8 9H9V3.8M20.2 9H15V3.8M3.8 15H9v5.2M20.2 15H15v5.2"/>');
+  ic("export", '<path d="M14 4.6h5.4V10"/><path d="M19.4 4.6 11 13"/><path d="M19.4 13.6v4.4a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V6.8A1.8 1.8 0 0 1 6.2 5h4.4"/>');
+  ic("wall", '<rect x="3.2" y="4.4" width="17.6" height="12" rx="2"/><path d="M8.4 19.6h7.2M12 16.4v3.2"/>');
+  ic("wall-off", '<rect x="3.2" y="4.4" width="17.6" height="12" rx="2"/><path d="M8.4 19.6h7.2M12 16.4v3.2M8.6 7.6l6.8 5.6M15.4 7.6l-6.8 5.6"/>');
   ic("comment", '<path d="M20.4 14.6a2.6 2.6 0 0 1-2.6 2.6H9.6L4.2 20.4V6.6a2.6 2.6 0 0 1 2.6-2.6h11a2.6 2.6 0 0 1 2.6 2.6Z"/>');
   ic("group", '<circle cx="9" cy="9" r="3.2"/><path d="M3.4 19.4a5.6 5.6 0 0 1 11.2 0"/><circle cx="17" cy="10.4" r="2.6"/><path d="M15.2 16.2a4.8 4.8 0 0 1 5.4 3.2"/>');
   ic("cloud", '<path d="M7.4 18.4h9.2a3.6 3.6 0 0 0 .4-7.2 5.2 5.2 0 0 0-10-1.2 3.6 3.6 0 0 0 .4 8.4Z"/>');

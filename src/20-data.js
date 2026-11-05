@@ -98,30 +98,35 @@
   }
 
   // ======================= 8. favicon =======================
+  // 用内联 SVG 画一个 IM 图标：不联网、不出现任何 B站素材，样式跟随皮肤主色。
   var SKIN_FAVICON = {
-    dingtalk: { bg: ["#2B6BE4", "#0E5AD6"], text: "钉" },
-    feishu: { bg: ["#3370FF", "#1A56E8"], text: "飞" },
-    wecom: { bg: ["#2A8AFF", "#1769D2"], text: "企" }
+    dingtalk: { bg: ["#33AAF8", "#0E6EE6"], glyph: "钉" },
+    feishu: { bg: ["#3370FF", "#1A56E8"], glyph: "飞" },
+    wecom: { bg: ["#2A8AFF", "#1769D2"], glyph: "企" }
   };
   function paintFavicon() {
     var cfg = SKIN_FAVICON[SKIN_ID] || SKIN_FAVICON.dingtalk;
-    var size = 32, c = document.createElement("canvas");
-    c.width = c.height = size;
-    var g = c.getContext("2d");
-    var grad = g.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, cfg.bg[0]); grad.addColorStop(1, cfg.bg[1]);
-    g.fillStyle = grad; g.fillRect(0, 0, size, size);
-    g.fillStyle = "#fff"; g.font = "bold 19px 'Microsoft YaHei', sans-serif";
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(cfg.text, size / 2, size / 2 + 1);
-    var uri = c.toDataURL("image/png");
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +
+      '<defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="' + cfg.bg[0] + '"/><stop offset="1" stop-color="' + cfg.bg[1] + '"/>' +
+      '</linearGradient></defs>' +
+      '<rect width="64" height="64" rx="14" fill="url(#b)"/>' +
+      '<text x="32" y="34" text-anchor="middle" dominant-baseline="middle" fill="#fff" ' +
+      'font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="34" font-weight="700">' + cfg.glyph + '</text>' +
+      '</svg>';
+    var uri = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     var link = document.getElementById(FAVICON_ID);
     if (!link) {
       link = document.createElement("link");
-      link.id = FAVICON_ID; link.rel = "icon";
+      link.id = FAVICON_ID; link.rel = "icon"; link.type = "image/svg+xml";
       (document.head || document.documentElement).appendChild(link);
     }
     link.setAttribute("href", uri);
-    var old = document.querySelectorAll('link[rel~="icon"]:not(#' + FAVICON_ID + ')');
-    for (var i = 0; i < old.length; i++) old[i].setAttribute("rel", "alternate-icon");
+    // 站内自带的图标（含 apple-touch-icon）一律降级，避免浏览器回退到 B站图标
+    var old = document.head.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="mask-icon"]');
+    for (var i = 0; i < old.length; i++) {
+      if (old[i].id === FAVICON_ID) continue;
+      old[i].setAttribute("rel", "alternate-icon");
+      old[i].setAttribute("href", uri);
+    }
   }

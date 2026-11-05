@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B钉 · B站 IM 皮肤（钉钉 / 飞书 / 企业微信）
 // @namespace    biliding.local
-// @version      2.0.0
+// @version      2.1.0
 // @author       BiliDing
 // @description  把 B 站装进办公 IM：首页推荐流变成消息会话、分区变成群聊、视频页变成单聊、评论区变成聊天记录。内置钉钉 / 飞书 / 企业微信三套皮肤，一键切换。纯前端皮肤，不写 B站任何数据。
 // @match        https://www.bilibili.com/*
@@ -31,14 +31,16 @@
   // 本地预览（file:// 打开 harness 页面）时通过 window.__BILIDING_MOCK__ 注入假数据，
   // 该全局只可能由使用者自己在本机页面里设置，正式站点不会存在。
   var MOCK = window.__BILIDING_MOCK__ || null;
+  // 预览页用 file:// 打开，同目录的脚本也不算「非目标站点」
+  var IS_PREVIEW = /^file:$/.test(location.protocol);
   if (!IS_TOP) return;
-  if (!MOCK && !/^www\.bilibili\.com$|^search\.bilibili\.com$/.test(HOST)) return;
-
+  if (!MOCK && !IS_PREVIEW && !/^www\.bilibili\.com$|^search\.bilibili\.com$/.test(HOST)) return;
   var ROOT_CLASS = "im-theme";
   var DARK_CLASS = "im-dark";
   var STYLE_ID = "biliding-style";
   var FAVICON_ID = "biliding-favicon";
   var LS = {
+    title: "biliding-title-custom",
     skin: "biliding-skin",
     dark: "biliding-dark",
     mode: "biliding-color-mode",
@@ -47,7 +49,8 @@
     navW: "biliding-nav-width",
     org: "biliding-org-name",
     mask: "biliding-mask",
-    playerW: "biliding-player-width"
+    playerW: "biliding-player-width",
+    blur: "biliding-page-blur"
   };
 
   // ======================= 1. 工具 =======================
@@ -186,6 +189,12 @@
   ic("chevright", '<path d="m10 7 5 5-5 5"/>');
   ic("pin", '<path d="M9 3.6h6l-.7 5.2 3.5 3v1.6H6.2v-1.6l3.5-3Z"/><path d="M12 13.4v7"/>');
   ic("play", '<circle cx="12" cy="12" r="8.6"/><path d="M10.2 8.8 16 12l-5.8 3.2Z" fill="currentColor" stroke="none"/>');
+  ic("play-tri", '<path d="M8.2 5.4 18.6 12 8.2 18.6Z" fill="currentColor" stroke="none"/>');
+  ic("expand", '<path d="M9 3.8H3.8V9M15 3.8h5.2V9M9 20.2H3.8V15M15 20.2h5.2V15"/>');
+  ic("shrink", '<path d="M3.8 9H9V3.8M20.2 9H15V3.8M3.8 15H9v5.2M20.2 15H15v5.2"/>');
+  ic("export", '<path d="M14 4.6h5.4V10"/><path d="M19.4 4.6 11 13"/><path d="M19.4 13.6v4.4a1.8 1.8 0 0 1-1.8 1.8H6.2a1.8 1.8 0 0 1-1.8-1.8V6.8A1.8 1.8 0 0 1 6.2 5h4.4"/>');
+  ic("wall", '<rect x="3.2" y="4.4" width="17.6" height="12" rx="2"/><path d="M8.4 19.6h7.2M12 16.4v3.2"/>');
+  ic("wall-off", '<rect x="3.2" y="4.4" width="17.6" height="12" rx="2"/><path d="M8.4 19.6h7.2M12 16.4v3.2M8.6 7.6l6.8 5.6M15.4 7.6l-6.8 5.6"/>');
   ic("comment", '<path d="M20.4 14.6a2.6 2.6 0 0 1-2.6 2.6H9.6L4.2 20.4V6.6a2.6 2.6 0 0 1 2.6-2.6h11a2.6 2.6 0 0 1 2.6 2.6Z"/>');
   ic("group", '<circle cx="9" cy="9" r="3.2"/><path d="M3.4 19.4a5.6 5.6 0 0 1 11.2 0"/><circle cx="17" cy="10.4" r="2.6"/><path d="M15.2 16.2a4.8 4.8 0 0 1 5.4 3.2"/>');
   ic("cloud", '<path d="M7.4 18.4h9.2a3.6 3.6 0 0 0 .4-7.2 5.2 5.2 0 0 0-10-1.2 3.6 3.6 0 0 0 .4 8.4Z"/>');
@@ -204,6 +213,100 @@
   ic("quote-reply", '<path d="M9 8.4 4.6 12.6 9 16.8"/><path d="M4.6 12.6h9.2a5.8 5.8 0 0 1 5.8 5.8v1.2"/>');
   ic("camera", '<path d="M4.4 8.4h2.8l1.4-2h6.8l1.4 2h2.8a1.8 1.8 0 0 1 1.8 1.8v7.2a1.8 1.8 0 0 1-1.8 1.8H4.4a1.8 1.8 0 0 1-1.8-1.8v-7.2a1.8 1.8 0 0 1 1.8-1.8Z"/><circle cx="12" cy="13.6" r="3"/>');
   ic("send", '<path d="M20.6 3.4 3.6 10.6l6.9 2.5 2.5 6.9Z"/><path d="m10.5 13.1 4.6-4.6"/>');
+  // ======================= 2.5 伪装：标签页标题 / 图标 / 右键菜单 =======================
+  // 目标：浏览器的标签页标题、图标、右键菜单都不能露出「B站 / 哔哩哔哩」。
+  // 做法：重定义 document.title 的 getter/setter 拦住站内 SPA 的改写，配上 MutationObserver 兜底。
+  // 更狠的一招：给站点脚本塞一个假名字。标题多半是「$O.NAME_zh + "..."」拼出来的，
+  // 站点自己的变量被改了，就算它绕过 setter 直接写 <title> 节点，也拼不出带品牌名的文字。
+  var DEFAULT_TITLE = "云枢科技 · 钉钉";
+  var rawDesc = null;
+  try { rawDesc = Object.getOwnPropertyDescriptor(Document.prototype, "title"); } catch (e) { rawDesc = null; }
+  // 注意：这几个正则不能带中文反引号 / 反斜杠以外的转义坑，写错会连累整段模板字符串
+  var MASKS = [
+    [/bilibili/gi, "云枢科技"],
+    [/[哔哩]*哩哔哩/g, "云枢科技"],
+    [/B站/g, "云枢科技"],
+    [/视频播放器/g, "会议室"],
+    [/视频播放/g, "会议记录"]
+  ];
+
+  function appTitle() {
+    var t = String(lsGet(LS.title, "") || "").trim();
+    if (t) return t;
+    var label = (typeof SKINS !== "undefined" && SKINS[SKIN_ID] && SKINS[SKIN_ID].label) || "钉钉";
+    return "云枢科技 · " + label;
+  }
+  function setAppTitle(t) {
+    var text = String(t || "").trim();
+    if (text) lsSet(LS.title, text);
+    else { try { localStorage.removeItem(LS.title); } catch (e) { /* ignore */ } }
+    syncTitle(true);
+    if (el.root) {
+      el.root.setAttribute("data-title", appTitle());
+      var tb = el.root.querySelector(".im-tb-apptitle");
+      if (tb) tb.textContent = appTitle();
+    }
+  }
+  function maskTitle(s) {
+    s = String(s == null ? "" : s);
+    for (var i = 0; i < MASKS.length; i++) s = s.replace(MASKS[i][0], MASKS[i][1]);
+    return s;
+  }
+  function syncTitle(force) {
+    if (!rawDesc || !rawDesc.get) return;
+    var want = appTitle();
+    try {
+      if (force || rawDesc.get.call(document) !== want) rawDesc.set.call(document, want);
+    } catch (e) { /* ignore */ }
+  }
+  // 站点脚本里存站名的全局变量（B站是 window.$O.NAME_zh / NAME）
+  function maskBrandGlobals() {
+    try {
+      var o = window.$O;
+      if (o && typeof o === "object") {
+        if (typeof o.NAME_zh === "string") o.NAME_zh = "云枢科技";
+        if (typeof o.NAME === "string") o.NAME = "云枢科技";
+      }
+    } catch (e) { /* ignore */ }
+  }
+  // 站内 SPA 会直接 document.title = "xxx_哔哩哔哩_bilibili"：重定义 getter/setter 统一改写
+  function installTitleGuard() {
+    if (!rawDesc || !rawDesc.get || !rawDesc.set) return;
+    try {
+      Object.defineProperty(document, "title", {
+        configurable: true,
+        enumerable: true,
+        get: function () { return maskTitle(rawDesc.get.call(document)); },
+        set: function (v) {
+          var s = String(v == null ? "" : v);
+          try {
+            if (rawDesc.get.call(document) === s) return;
+            rawDesc.set.call(document, s);
+          } catch (e) { /* ignore */ }
+          syncTitle();
+        }
+      });
+    } catch (e) { /* ignore */ }
+  }
+  function installTitleObserver() {
+    if (typeof MutationObserver !== "function") return;
+    var head = document.head || document.documentElement;
+    if (!head) return;
+    try {
+      new MutationObserver(function () {
+        syncTitle();
+        maskBrandGlobals();
+      }).observe(head, { childList: true, subtree: true, characterData: true });
+    } catch (e) { /* ignore */ }
+  }
+  // 右键菜单：把「复制视频地址 / 统计信息 / 检查元素」里的品牌字样盖掉
+  function installContextMenuGuard() {
+    if (MOCK) return;
+    document.addEventListener("contextmenu", function (e) {
+      if (e.target.closest && e.target.closest("#biliding-root")) return;
+      e.preventDefault();
+    }, true);
+  }
   // ======================= 3. 皮肤配置 =======================
   // 三套皮肤：钉钉 8.x / 飞书 IM / 企业微信 5.x。
   // 结构差异用 layout 标记，配色走 CSS 里的 [data-skin=...] 变量块。
@@ -312,6 +415,11 @@
   var SKIN_ID = currentSkinId();
   function skin() { return SKINS[SKIN_ID]; }
 
+  // 站点脚本一开始跑就会把标题改回「…_哔哩哔哩_bilibili」，所以这里立刻装上拦截
+  // （MOCK 预览页不改标题）
+  installTitleGuard();
+  syncTitle(true);
+
   // ======================= 4. 频道定义（B站分区 → 群聊） =======================
   var CHANNELS = [
     { rid: 0, key: "rcmd", label: "推荐", group: "推荐流", avatar: "推", color: "#1A87FF", kind: "home" },
@@ -375,6 +483,9 @@
     listFilter: "all",
     listQuery: "",
     dark: lsGet(LS.dark, "0") === "1",
+    blur: lsGet(LS.blur, "0") === "1",
+    playerDef: null,
+    playerW: 0,
     me: null,
     messages: {}
   };
@@ -478,32 +589,37 @@
   }
 
   // ======================= 8. favicon =======================
+  // 用内联 SVG 画一个 IM 图标：不联网、不出现任何 B站素材，样式跟随皮肤主色。
   var SKIN_FAVICON = {
-    dingtalk: { bg: ["#2B6BE4", "#0E5AD6"], text: "钉" },
-    feishu: { bg: ["#3370FF", "#1A56E8"], text: "飞" },
-    wecom: { bg: ["#2A8AFF", "#1769D2"], text: "企" }
+    dingtalk: { bg: ["#33AAF8", "#0E6EE6"], glyph: "钉" },
+    feishu: { bg: ["#3370FF", "#1A56E8"], glyph: "飞" },
+    wecom: { bg: ["#2A8AFF", "#1769D2"], glyph: "企" }
   };
   function paintFavicon() {
     var cfg = SKIN_FAVICON[SKIN_ID] || SKIN_FAVICON.dingtalk;
-    var size = 32, c = document.createElement("canvas");
-    c.width = c.height = size;
-    var g = c.getContext("2d");
-    var grad = g.createLinearGradient(0, 0, size, size);
-    grad.addColorStop(0, cfg.bg[0]); grad.addColorStop(1, cfg.bg[1]);
-    g.fillStyle = grad; g.fillRect(0, 0, size, size);
-    g.fillStyle = "#fff"; g.font = "bold 19px 'Microsoft YaHei', sans-serif";
-    g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(cfg.text, size / 2, size / 2 + 1);
-    var uri = c.toDataURL("image/png");
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +
+      '<defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="' + cfg.bg[0] + '"/><stop offset="1" stop-color="' + cfg.bg[1] + '"/>' +
+      '</linearGradient></defs>' +
+      '<rect width="64" height="64" rx="14" fill="url(#b)"/>' +
+      '<text x="32" y="34" text-anchor="middle" dominant-baseline="middle" fill="#fff" ' +
+      'font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="34" font-weight="700">' + cfg.glyph + '</text>' +
+      '</svg>';
+    var uri = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     var link = document.getElementById(FAVICON_ID);
     if (!link) {
       link = document.createElement("link");
-      link.id = FAVICON_ID; link.rel = "icon";
+      link.id = FAVICON_ID; link.rel = "icon"; link.type = "image/svg+xml";
       (document.head || document.documentElement).appendChild(link);
     }
     link.setAttribute("href", uri);
-    var old = document.querySelectorAll('link[rel~="icon"]:not(#' + FAVICON_ID + ')');
-    for (var i = 0; i < old.length; i++) old[i].setAttribute("rel", "alternate-icon");
+    // 站内自带的图标（含 apple-touch-icon）一律降级，避免浏览器回退到 B站图标
+    var old = document.head.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="mask-icon"]');
+    for (var i = 0; i < old.length; i++) {
+      if (old[i].id === FAVICON_ID) continue;
+      old[i].setAttribute("rel", "alternate-icon");
+      old[i].setAttribute("href", uri);
+    }
   }
   // ======================= 9. 样式（公共骨架） =======================
   var CSS_CORE = String.raw`
@@ -516,7 +632,9 @@
     font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
     -webkit-font-smoothing: antialiased;
   }
-  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap) {
+  /* 隐藏原站页面：用 visibility:hidden 而不是 display:none（B站脚本会读元素尺寸，display:none 会抛错）。
+     浮层（皮肤菜单 / 尺寸菜单 / 标题框）必须显式放行，否则会被这条规则一起藏掉。 */
+  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap):not(.im-skin-menu):not(.bd-size-menu):not(.bd-title-dlg) {
     visibility: hidden !important; pointer-events: none !important;
   }
 
@@ -545,6 +663,10 @@
   .im-tb-status { font-size: 12.5px; color: var(--c-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
   .im-tb-status b { font-weight: 500; color: var(--c-text); }
   .im-tb-status .song { color: var(--c-text3); }
+  /* 顶栏标题：直接用标签页标题，改标题时这里同步变 */
+  .im-tb-apptitle { font-size: 13px; font-weight: 600; color: var(--c-text); letter-spacing: .2px;
+    padding: 0 2px; cursor: default; user-select: none; }
+  .im-tb-apptitle:hover { color: var(--c-accent); }
   .im-tb-center { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; }
   .im-tb-search { width: min(520px, 100%); height: 26px; display: flex; align-items: center; gap: 6px;
     padding: 0 12px; border-radius: 13px; background: var(--c-search); border: 1px solid transparent;
@@ -763,12 +885,13 @@
   .bd-card-foot .up span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
   .bd-card-foot .sp { flex: 1; }
 
-  /* 播放器贴片（宽度可调，见 JS 里的 bindPlayerResize） */
+  /* 播放器贴片（宽度可调，见 JS 里的 bindPlayerResize）：
+     宽度写到 .im-shell 的 --bd-player-w 上，气泡/消息容器跟着一起放，才能「放大」而不是被 760px 裁掉 */
   .bd-player { width: min(var(--bd-player-w, 720px), 100%); aspect-ratio: 16 / 9;
     border-radius: 8px; overflow: hidden; background: #000; position: relative; }
-  /* 太小时用 min-width 会溢出气泡，改为跟随容器压窄 */
   .bd-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  /* 拖右下角改宽度，aspect-ratio 自动跟高度 */
+  .bd-player-main { position: absolute; inset: 0; background: #000; }
+  /* 右下角拖拽手柄 + 角上个「放大 / 全屏」按钮 */
   .bd-player-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; z-index: 4;
     cursor: nwse-resize; touch-action: none;
     background: linear-gradient(135deg, transparent 46%, rgba(255,255,255,.72) 46%, rgba(255,255,255,.72) 54%,
@@ -777,8 +900,21 @@
     font-size: 11px; color: rgba(255,255,255,.9); background: rgba(0,0,0,.5); border-radius: 4px;
     padding: 2px 6px; opacity: 0; transition: opacity .16s; }
   .bd-player:hover .bd-player-hint { opacity: 1; }
+  .bd-player-tools { position: absolute; right: 24px; bottom: 8px; z-index: 5; display: flex; gap: 4px;
+    opacity: 0; transition: opacity .16s; }
+  .bd-player:hover .bd-player-tools, .bd-player.full .bd-player-tools { opacity: 1; }
+  .bd-player-tools button { width: 26px; height: 26px; border: 0; border-radius: 5px; padding: 0;
+    background: rgba(0,0,0,.55); color: #fff; cursor: pointer; display: inline-flex;
+    align-items: center; justify-content: center; }
+  .bd-player-tools button:hover { background: rgba(0,0,0,.78); }
+  .bd-player-tools button svg { width: 14px; height: 14px; }
+  /* 播放器全屏 */
+  .bd-player.full { position: fixed !important; inset: 0; width: 100% !important; height: 100vh !important;
+    max-width: none !important; aspect-ratio: auto !important; border-radius: 0; z-index: 10001; }
+  .bd-player.full .bd-player-grip { display: none; }
+  .im-shell.player-full .im-chat-head { visibility: hidden; }
   /* 尺寸菜单 */
-  .bd-size-menu { position: fixed; z-index: 9998; min-width: 132px; padding: 6px; border-radius: 10px;
+  .bd-size-menu { position: fixed; z-index: 10000; min-width: 148px; padding: 6px; border-radius: 10px;
     background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
     animation: bd-fade .12s ease both; }
   .bd-size-menu .it { display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -786,6 +922,8 @@
   .bd-size-menu .it:hover { background: var(--c-hover); }
   .bd-size-menu .it.on { color: var(--c-accent); font-weight: 500; }
   .bd-size-menu .it .k { font-size: 11px; color: var(--c-text3); }
+  .bd-size-menu .it.danger { color: #E81123; }
+  .bd-size-menu .sep { height: 1px; background: var(--c-line); margin: 5px 4px; }
   .bd-player .poster { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     cursor: pointer; background-size: cover; background-position: center; }
   .bd-player .poster::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.4); }
@@ -793,6 +931,21 @@
     height: 36px; padding: 0 16px; border-radius: 18px; background: rgba(255,255,255,.95); color: #17181A;
     font-size: 13px; font-weight: 500; border: 0; cursor: pointer; }
   .bd-player .poster .btn svg { width: 15px; height: 15px; }
+  /* 改标题的小对话框 */
+  .bd-title-dlg { position: fixed; z-index: 10002; width: 280px; padding: 12px 14px 10px; border-radius: 12px;
+    background: var(--c-panel, #fff); border: 1px solid var(--c-line, #E2E6EE);
+    box-shadow: 0 16px 40px rgba(17,24,39,.2); color: var(--c-text, #1F2329);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; animation: bd-fade .12s ease both; }
+  .bd-title-dlg .hd { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .bd-title-dlg input { width: 100%; height: 30px; padding: 0 9px; border-radius: 7px; font-size: 13px;
+    border: 1px solid var(--c-line, #E2E6EE); background: transparent; color: inherit; outline: none; }
+  .bd-title-dlg input:focus { border-color: var(--c-accent, #1A7AF8); }
+  .bd-title-dlg .hint { font-size: 11px; color: var(--c-text3, #86909C); line-height: 1.5; margin: 7px 0 10px; }
+  .bd-title-dlg .ft { display: flex; justify-content: flex-end; gap: 8px; }
+  .bd-title-dlg button { height: 28px; padding: 0 14px; border-radius: 6px; font-size: 12.5px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit; }
+  .bd-title-dlg button.ghost { background: transparent; border-color: var(--c-line, #E2E6EE); color: inherit; }
+  .bd-title-dlg button.ok { background: var(--c-accent, #1A7AF8); color: #fff; }
   .bd-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .bd-stat { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--c-text3);
     background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 11px; padding: 2px 8px; }
@@ -846,7 +999,7 @@
     border-top-color: var(--c-accent); animation: bd-spin .8s linear infinite; }
 
   /* 皮肤切换浮层 */
-  .im-skin-menu { position: fixed; z-index: 9998; min-width: 168px; padding: 6px; border-radius: 10px;
+  .im-skin-menu { position: fixed; z-index: 10000; min-width: 188px; padding: 6px; border-radius: 10px;
     background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
     animation: bd-fade .12s ease both; }
   .im-skin-menu .it { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px;
@@ -854,7 +1007,15 @@
   .im-skin-menu .it:hover { background: var(--c-hover); }
   .im-skin-menu .it.on { color: var(--c-accent); font-weight: 500; }
   .im-skin-menu .it .sw { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 14px; }
+  .im-skin-menu .it .nm { flex: 1; }
+  .im-skin-menu .it .ck { width: 14px; height: 14px; display: inline-flex; }
+  .im-skin-menu .it .ck svg { width: 14px; height: 14px; }
   .im-skin-menu .hd { font-size: 11px; color: var(--c-text3); padding: 4px 10px 6px; }
+  .im-skin-menu .sep { height: 1px; background: var(--c-line); margin: 5px 4px; }
+  .im-skin-menu .hd2 { font-size: 11px; color: var(--c-text3); padding: 2px 10px 4px; }
+  .im-skin-menu .ttl { font-size: 12px; color: var(--c-text2); padding: 0 10px 6px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .im-win.menu-open { background: var(--c-hover); color: var(--c-text); }
 
   /* toast */
   .im-toast-wrap { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 9999;
@@ -866,9 +1027,36 @@
   .im-resizer { position: absolute; top: 0; right: -3px; bottom: 0; width: 6px; cursor: col-resize; z-index: 8; }
   .im-resizer:hover { background: linear-gradient(90deg, transparent, var(--c-accent-weak), transparent); }
 
-  /* B站视频页 / 评论区专用排版 */
-  .im-bubble.wide { max-width: min(760px, 84%); }
-  .im-msg-main.wide { max-width: min(780px, 82%); }
+  /* B站视频页 / 评论区专用排版
+     注意：模板字符串里不能出现反引号，会直接把 String.raw 提前闭合。
+     规则：--bd-player-w 由 JS 写到 #biliding-root 上，气泡与消息列跟着放宽，播放器才能真正放大；
+     上限由 JS 按聊天区宽度算。 */
+  .im-bubble.wide, .im-bubble.wide.wide { max-width: min(var(--bd-bubble-w, 9999px), 100%); }
+  /* 消息列必须比气泡更宽，否则气泡会被 .im-msg-main 的 max-width 二次压住。
+     注意 .im-msg .im-msg-main 是 (0,2,0) 选择器，这里相应提高特异性才压得住。 */
+  .im-msg .im-msg-main.wide, .im-msg .im-msg-main.wide.wide {
+    max-width: min(calc(var(--bd-player-w, 720px) + 64px), calc(100% - 44px));
+  }
+  .im-msg-main.wide .im-bubble.wide, .im-msg-main.wide .im-bubble.wide[data-bd-player-w] {
+    width: min(calc(var(--bd-player-w, 720px) + 24px), 100%);
+  }
+  .im-bubble.wide .bd-player, .im-bubble.wide .bd-player.sized { width: min(var(--bd-player-w, 720px), 100%); }
+  /* 播放器全屏：必须比 .im-shell.page-blur .im-chat-body 的模糊更硬，所以带 !important */
+  .bd-player.full {
+    position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important;
+    max-width: none !important; aspect-ratio: auto !important; border-radius: 0 !important;
+    z-index: 10001 !important; filter: none !important;
+  }
+  .bd-player.full .bd-player-grip { display: none; }
+  .im-shell.player-full .im-chat-head { visibility: hidden; }
+
+  /* 会议背景：模糊聊天与列表，保留顶栏与播放器（全屏播放器不受影响） */
+  .im-shell.page-blur .im-rail,
+  .im-shell.page-blur .im-nav2,
+  .im-shell.page-blur .im-strip,
+  .im-shell.page-blur .im-list,
+  .im-shell.page-blur .im-chat-body,
+  .im-shell.page-blur .im-composer { filter: blur(7px) saturate(.8); transition: filter .2s ease; }
 
   /* 触屏 / 窄屏：把 rail 收成图标条 */
   @media (max-width: 1120px) {
@@ -1106,12 +1294,14 @@
       '<div class="im-titlebar">',
       '  <div class="im-tb-left">',
       '    <div class="im-me" title="我的资料"></div>',
+      '    <div class="im-tb-apptitle" title="点击可改标签页标题">' + esc(appTitle()) + '</div>',
       '    <div class="im-tb-status"><b>小稳中</b> 在听 <span class="song">Northeast</span></div>',
       '  </div>',
       '  <div class="im-tb-center"><div class="im-tb-search">' + SVG.search +
       '<input type="search" data-act="global-search" placeholder="搜索或提问（Ctrl+Shift+F）" aria-label="搜索"></div></div>',
       '  <div class="im-tb-right">',
       '    <button class="im-win" data-act="skin" title="切换皮肤">' + SVG.skin + '</button>',
+      '    <button class="im-win" data-act="blur" title="会议背景（模糊本页）">' + SVG.wall + '</button>',
       '    <button class="im-win" data-act="dark" title="深色/浅色">' + (state.dark ? SVG.sun : SVG.moon) + '</button>',
       '    <span class="im-tb-sep"></span>',
       '    <button class="im-win" data-act="win-min" title="最小化">' + SVG.min + '</button>',
@@ -1235,6 +1425,7 @@
     root.className = "im-shell";
     root.setAttribute("data-skin", SKIN_ID);
     root.setAttribute("data-list-header", sk.listHeader);
+    root.setAttribute("data-title", appTitle());
     root.innerHTML = titlebarHtml() +
       '<div class="im-body">' + railHtml() + nav2Html() + stripHtml() + listHtml() +
       '<div class="im-chat"></div></div>';
@@ -1279,7 +1470,17 @@
       var darkBtn = t.closest && t.closest('[data-act="dark"]');
       if (darkBtn) { toggleDark(); return; }
       var winBtn = t.closest && t.closest('[data-act^="win-"]');
-      if (winBtn) { toast("这是演示皮肤，窗口按钮只做样子"); return; }
+      if (winBtn) {
+        var wa = winBtn.getAttribute("data-act");
+        if (wa === "win-close") toast("关闭只是演示；标签页标题与图标都已换成「" + appTitle() + "」");
+        else if (wa === "win-max") togglePlayerFullOnChat();
+        else toast("这是演示皮肤，窗口按钮只做样子");
+        return;
+      }
+      var blurBtn = t.closest && t.closest("[data-act=\"blur\"]");
+      if (blurBtn) { setBlur(!state.blur); return; }
+      var titleEl = t.closest && t.closest(".im-tb-apptitle");
+      if (titleEl) { openTitleDialog(); return; }
       var moreBtn = t.closest && t.closest('[data-act="more"]');
       if (moreBtn) { toast("B钉 v2 · 三合一 IM 皮肤，数据仅来自 B站公开页面"); return; }
       var collapseBtn = t.closest && t.closest('[data-act="collapse"]');
@@ -1357,34 +1558,68 @@
     if (g && g.keys.length) { openConversation("conv:" + g.keys[0]); }
   }
 
+  // 皮肤切换浮层。
+  // 旧实现把「点外面关闭」挂在 document 的 click 上、并延迟一帧绑定——同一次点击的冒泡会立刻把菜单关掉，
+  // 表现就是「点了没反应」。这里改成用 mousedown 判断，并且只在菜单已经打开之后才生效。
+  var skinMenuEl = null, skinMenuAnchor = null;
+  function closeSkinMenu() {
+    if (skinMenuEl) { skinMenuEl.remove(); skinMenuEl = null; }
+    if (skinMenuAnchor) { skinMenuAnchor.classList.remove("menu-open"); skinMenuAnchor = null; }
+    document.removeEventListener("mousedown", onSkinMenuOutside, true);
+    document.removeEventListener("keydown", onSkinMenuKey, true);
+    window.removeEventListener("resize", closeSkinMenu);
+  }
+  function onSkinMenuOutside(ev) {
+    if (!skinMenuEl) return;
+    if (skinMenuEl.contains(ev.target)) return;
+    if (skinMenuAnchor && skinMenuAnchor.contains(ev.target)) return;
+    closeSkinMenu();
+  }
+  function onSkinMenuKey(ev) { if (ev.key === "Escape") closeSkinMenu(); }
+
   function openSkinMenu(anchor) {
-    var old = document.querySelector(".im-skin-menu");
-    if (old) { old.remove(); return; }
+    if (skinMenuEl) {
+      var same = skinMenuAnchor === anchor;
+      closeSkinMenu();
+      if (same) return;
+    }
     var menu = document.createElement("div");
     menu.className = "im-skin-menu";
-    var r = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 100, bottom: 60 };
-    menu.style.left = Math.max(8, Math.min(window.innerWidth - 190, r.left - 130)) + "px";
-    menu.style.top = (r.bottom + 6) + "px";
+    menu.setAttribute("role", "menu");
     menu.innerHTML = '<div class="hd">切换皮肤</div>' + SKIN_ORDER.map(function (id) {
       var s = SKINS[id];
       var color = id === "dingtalk" ? "#1A7AF8" : id === "feishu" ? "#3370FF" : "#2A7CF7";
-      return '<div class="it' + (id === SKIN_ID ? " on" : "") + '" data-skin-pick="' + id + '">' +
-        '<span class="sw" style="background:' + color + '"></span>' + esc(s.label) +
-        (id === SKIN_ID ? SVG.check : "") + '</div>';
-    }).join("");
+      return '<div class="it' + (id === SKIN_ID ? " on" : "") + '" role="menuitem" data-skin-pick="' + id + '">' +
+        '<span class="sw" style="background:' + color + '"></span>' +
+        '<span class="nm">' + esc(s.label) + '</span>' +
+        '<span class="ck">' + (id === SKIN_ID ? SVG.check : "") + '</span></div>';
+    }).join("") +
+      '<div class="sep"></div><div class="hd2">标签页标题</div><div class="ttl">' + esc(appTitle()) + '</div>';
     document.body.appendChild(menu);
+    skinMenuEl = menu;
+    skinMenuAnchor = anchor;
+    anchor.classList.add("menu-open");
+    // 定位于按钮下方，超出右边界时向左收
+    var r = anchor.getBoundingClientRect();
+    var mw = menu.offsetWidth || 188, mh = menu.offsetHeight || 200;
+    var left = Math.min(Math.max(8, r.left + r.width - mw), window.innerWidth - mw - 8);
+    var top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    menu.style.left = Math.round(left) + "px";
+    menu.style.top = Math.round(top) + "px";
     menu.addEventListener("click", function (e) {
       var it = e.target.closest("[data-skin-pick]");
       if (!it) return;
-      menu.remove();
+      e.stopPropagation();
+      closeSkinMenu();
       switchSkin(it.dataset.skinPick);
     });
+    // 用 setTimeout(0) 让本次点击先走完，再挂「点外面关闭」
     setTimeout(function () {
-      document.addEventListener("click", function close(ev) {
-        if (menu.contains(ev.target)) return;
-        menu.remove();
-        document.removeEventListener("click", close);
-      }, { once: true });
+      if (!skinMenuEl) return;
+      document.addEventListener("mousedown", onSkinMenuOutside, true);
+      document.addEventListener("keydown", onSkinMenuKey, true);
+      window.addEventListener("resize", closeSkinMenu);
     }, 0);
   }
 
@@ -1392,10 +1627,11 @@
     if (!SKINS[id] || id === SKIN_ID) return;
     SKIN_ID = id;
     lsSet(LS.skin, id);
+    closeSkinMenu();
     paintFavicon();
+    syncTitle(true);
     el.root.remove();
     el.toastWrap.remove();
-    [].slice.call(document.querySelectorAll(".im-skin-menu")).forEach(function (m) { m.remove(); });
     // 结构差异较大，直接重建骨架再套用当前路由
     buildShell();
     if (state.dark) document.documentElement.classList.add(DARK_CLASS);
@@ -1548,13 +1784,18 @@
       ? '<img src="' + esc(o.img) + '" alt="">'
       : esc(o.avatar || "群");
     var acts = [
+      { i: "wall", t: state.blur ? "关闭会议背景" : "会议背景", act: "blur", on: state.blur },
       { i: "phone", t: "语音通话" },
       { i: "folder", t: "群文件" },
       { i: "adduser", t: "添加成员" },
       { i: "search", t: "搜索聊天记录" },
       { i: "settings", t: "会话设置" }
     ].map(function (a) {
-      return '<button class="im-icon-btn" title="' + a.t + '" data-deco="' + a.t + '">' + SVG[a.i] + '</button>';
+      var icon = SVG[a.i] || "";
+      if (a.act === "blur") {
+        return '<button class="im-icon-btn' + (a.on ? " on" : "") + '" title="' + a.t + '" data-act="blur">' + icon + '</button>';
+      }
+      return '<button class="im-icon-btn" title="' + a.t + '" data-deco="' + a.t + '">' + icon + '</button>';
     }).join("");
     return '<div class="im-chat-head">' +
       '<div class="av" style="background:' + esc(o.color || "#1A7AF8") + '">' + av + '</div>' +
@@ -1602,6 +1843,11 @@
     scrollChatToBottom();
     el.chat.querySelectorAll(".im-icon-btn").forEach(function (b) {
       if (b.dataset.bound) return;
+      if (b.dataset.act === "blur") {
+        b.dataset.bound = "1";
+        b.addEventListener("click", function () { setBlur(!state.blur); });
+        return;
+      }
       b.dataset.bound = "1";
       b.addEventListener("click", function () { toast("「" + (b.title || "按钮") + "」是装饰按钮"); });
     });
@@ -1642,7 +1888,7 @@
       '<div class="im-msg-main' + (o.wide ? " wide" : "") + '">' +
       (isMe ? "" : '<div class="im-msg-meta"><span class="im-msg-author">' + esc(o.author || "") + '</span>' +
         (o.time ? '<span class="im-msg-time">' + esc(o.time) + '</span>' : "") + '</div>') +
-      '<div class="im-bubble' + (o.wide ? " wide" : "") + '">' +
+      '<div class="im-bubble' + (o.wide ? " wide" : "") + '"' + (o.wide ? ' data-bd-player-w="1"' : "") + '>' +
       (o.quote ? '<div class="bd-quote">' + o.quote + '</div>' : "") + o.body + '</div>' +
       (isMe ? '<div class="im-read">已读</div>' : "") +
       (o.extra || "") +
@@ -1861,7 +2107,6 @@
       return apiReplies(v.aid, 1).then(function (r) { return { v: v, r: r }; }, function () { return { v: v, r: null }; });
     }).then(function (res) {
       paintVideoConversation(res.v, res.r, route);
-      document.title = String(res.v.title || "").slice(0, 40) + " · B钉";
     }).catch(function (err) {
       el.chat.innerHTML = chatHeaderHtml({ name: "视频会话", sub: "打开失败" }) +
         '<div class="im-empty"><div>会话打开失败：' + esc(err.message) + '</div></div>' + composerHtml("", true);
@@ -1872,16 +2117,18 @@
   function paintVideoConversation(v, r, route) {
     var up = v.owner || {}, stat = v.stat || {};
     var poster = toHttp(v.pic || "");
-    var embed = "//player.bilibili.com/player.html?bvid=" + encodeURIComponent(v.bvid) + "&page=" + (route.page || 1) + "&high_quality=1&danmaku=1&autoplay=0";
+    var page = route.page || 1;
     var head = chatHeaderHtml({
       name: up.name || "视频会话", tag: "UP主",
       sub: (v.tname || "视频") + " · " + fmtCount(stat.view) + "播放 · " + fmtCount(stat.danmaku) + "弹幕",
       img: toHttp(up.face || ""), color: "#5B8DEF",
-      extraActs: '<button class="im-icon-btn" title="播放器大小" data-act="player-size">' + SVG.resize + '</button>'
+      extraActs: '<button class="im-icon-btn" title="播放器大小 / 全屏" data-act="player-size">' + SVG.resize + '</button>'
     });
-    var card = '<div class="bd-player"><div class="poster" style="background-image:url(' + esc(poster) + ')">' +
+    var card = '<div class="bd-player">' +
+      '<div class="poster" style="background-image:url(' + esc(poster) + ')">' +
       '<button class="btn">' + SVG.play + '播放视频</button></div>' +
-      '<span class="bd-player-hint">拖右下角可调大小</span></div>' +
+      playerToolsHtml() +
+      '<span class="bd-player-hint">拖右下角调大小 · 双击全屏</span></div>' +
       '<div style="margin-top:9px;font-size:14px;font-weight:600;line-height:1.5">' + esc(v.title) + '</div>' +
       '<div class="bd-stats">' +
       '<span class="bd-stat">' + SVG.play + fmtCount(stat.view) + ' 播放</span>' +
@@ -1918,16 +2165,25 @@
     if (playerEl) {
       bindPlayerResize(playerEl);
       applySavedPlayerWidth(el.chat);
+      // 渲染完再按聊天区真实宽度算一次（上面那步时聊天区还没布局出来）
+      refreshPlayerVars();
+      setTimeout(refreshPlayerVars, 60);
       var posterEl = playerEl.querySelector(".poster");
       posterEl.addEventListener("click", function () {
-        posterEl.parentNode.innerHTML = '<iframe src="' + embed + '" allow="autoplay; fullscreen" allowfullscreen scrolling="no" frameborder="0"></iframe>' +
-          '<span class="bd-player-hint">拖右下角可调大小</span>';
-        // iframe 里的点击到不了外层，用可拖动的手柄代替右下角
-        var grip = document.createElement("div");
-        grip.className = "bd-player-grip";
-        playerEl.appendChild(grip);
-        bindPlayerResize(playerEl, grip);
+        startPlayback(playerEl, v.bvid, page);
+        playerEl.querySelectorAll(".bd-player-tools, .bd-player-grip").forEach(function (n) { n.style.display = ""; });
       });
+      // 控件要盖在 iframe 上（iframe 会吃掉指针事件），所以播放后仍然显示
+      playerEl.addEventListener("dblclick", function (e) {
+        if (e.target.closest(".bd-player-tools")) return;
+        togglePlayerFull(playerEl);
+      });
+      // 拖拽手柄：播放后 iframe 会盖住右下角，改成放在工具条里常驻
+      var grip = document.createElement("div");
+      grip.className = "bd-player-grip";
+      playerEl.appendChild(grip);
+      bindPlayerResize(playerEl, grip);
+      bindPlayerTools(playerEl, v.bvid);
       var sizeBtn = el.chat.querySelector('[data-act="player-size"]');
       if (sizeBtn) {
         sizeBtn.addEventListener("click", function (e) {
@@ -1938,84 +2194,6 @@
     }
   }
 
-  // 播放器宽度：可拖右下角、也可弹菜单选档位，结果写 localStorage
-  var PLAYER_MIN_W = 280, PLAYER_MAX_W = 1280;
-  var PLAYER_PRESETS = [
-    { label: "小", w: 480 },
-    { label: "中", w: 720 },
-    { label: "大", w: 960 },
-    { label: "自适应", w: 0 }
-  ];
-  function setPlayerWidth(px, playerEl) {
-    var root = el.root;
-    var w = Number(px) || 0;
-    if (w > 0) w = Math.min(PLAYER_MAX_W, Math.max(PLAYER_MIN_W, Math.round(w)));
-    if (w > 0) root.style.setProperty("--bd-player-w", w + "px");
-    else root.style.removeProperty("--bd-player-w");
-    lsSet(LS.playerW, String(w));
-    if (playerEl) playerEl.classList.toggle("sized", w > 0);
-    return w;
-  }
-  function applySavedPlayerWidth(scope) {
-    var w = Number(lsGet(LS.playerW, 0)) || 0;
-    if (w <= 0) return;
-    el.root.style.setProperty("--bd-player-w", w + "px");
-    if (scope) [].slice.call(scope.querySelectorAll(".bd-player")).forEach(function (p) { p.classList.add("sized"); });
-  }
-  function bindPlayerResize(playerEl, handle) {
-    var grip = handle || playerEl.querySelector(".bd-player-grip");
-    if (!grip || grip.dataset.bound) return;
-    grip.dataset.bound = "1";    var dragging = false, startX = 0, startW = 0;
-    grip.addEventListener("pointerdown", function (e) {
-      if (e.button !== 0) return;
-      dragging = true; startX = e.clientX;
-      startW = playerEl.getBoundingClientRect().width;
-      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      e.preventDefault(); e.stopPropagation();
-    });
-    grip.addEventListener("pointermove", function (e) {
-      if (!dragging) return;
-      setPlayerWidth(startW + e.clientX - startX, playerEl);
-    });
-    function end() {
-      if (!dragging) return;
-      dragging = false;
-      var w = Math.round(playerEl.getBoundingClientRect().width);
-      setPlayerWidth(w, playerEl);
-      toast("播放器宽度 " + w + "px，已记住");
-    }
-    grip.addEventListener("pointerup", end);
-    grip.addEventListener("pointercancel", end);
-  }
-  function openPlayerSizeMenu(anchor) {
-    [].slice.call(document.querySelectorAll(".bd-size-menu")).forEach(function (m) { m.remove(); });
-    var cur = Number(lsGet(LS.playerW, 0)) || 0;
-    var menu = document.createElement("div");
-    menu.className = "bd-size-menu";
-    menu.innerHTML = PLAYER_PRESETS.map(function (p) {
-      var on = p.w === 0 ? cur === 0 : Math.abs(p.w - cur) < 24;
-      return '<div class="it' + (on ? " on" : "") + '" data-w="' + p.w + '">' +
-        '<span>' + p.label + '</span><span class="k">' + (p.w ? p.w + "px" : "铺满") + '</span></div>';
-    }).join("");
-    document.body.appendChild(menu);
-    var r = anchor.getBoundingClientRect();
-    menu.style.top = Math.round(r.bottom + 4) + "px";
-    menu.style.left = Math.round(Math.min(r.left, window.innerWidth - 150)) + "px";
-    menu.addEventListener("click", function (e) {
-      var it = e.target.closest(".it");
-      if (!it) return;
-      var w = setPlayerWidth(Number(it.dataset.w), el.chat.querySelector(".bd-player"));
-      menu.remove();
-      toast(w ? "播放器宽度 " + w + "px" : "播放器宽度：自适应");
-    });
-    setTimeout(function () {
-      document.addEventListener("mousedown", function off(ev) {
-        if (menu.contains(ev.target)) return;
-        menu.remove();
-        document.removeEventListener("mousedown", off);
-      });
-    }, 0);
-  }
 
   // ======================= 20. 通讯录 / 工作台 / 搜索 =======================
   function renderContacts() {
@@ -2152,8 +2330,347 @@
   var ROUTE_RE = /^\/(video\/|popular|c\/|v\/|anime\/|guochuang\/|variety\/|movie\/|tv\/|documentary\/|music\/|dance\/|game\/|knowledge\/|tech\/|food\/|life\/|ent\/|car\/|fashion\/|kichiku\/|douga\/|sports)/;
 
   function navTo(href) {
+    if (MOCK) { mockNav(href); return; }
     try { history.pushState(null, "", href); } catch (e) { location.href = href; return; }
     applyRoute();
+  }
+
+  // 预览页只有一条 file:// 地址，切会话时直接改假路由，不碰真实 URL
+  function mockNav(href) {
+    if (!MOCK) return;
+    var m = /^\/video\/(BV[0-9A-Za-z]+)/.exec(href);
+    if (m) MOCK.route = { kind: "video", key: "video", bvid: m[1], page: 1 };
+    else if (href.indexOf("/popular") === 0) MOCK.route = { kind: "popular", key: "popular" };
+    else MOCK.route = { kind: "home", key: "home" };
+    var hit = /^\/c\/([a-z]+)\/?/.exec(href);
+    if (hit) {
+      var ch2 = channelByKey(hit[1]);
+      if (ch2) MOCK.route = { kind: "region", key: "region", channel: ch2 };
+    }
+    applyRoute();
+  }
+  // ======================= 18.5 视频播放（播放器宽度 / 全屏 / 播放源） =======================
+  // 设计目标：
+  // 1) 播放器能放大——宽度写到 .im-shell 的 --bd-player-w 上，气泡跟着放宽，上限取聊天区实际宽度；
+  // 2) 提供全屏；
+  // 3) 播放源优先用「当前页的 B站播放器」（片段源码里已有 player.html 的 iframe，这里复用并接管），
+  //    保证清晰度、登录态、弹幕、全屏都和网页端一致；拿不到官方播放器时降级到外链播放器。
+
+  function playerDefaults() {
+    return {
+      min: 320,
+      max: 1600,
+      preset: 720,
+      name: "",
+      tpl: '//player.bilibili.com/player.html?bvid=__BVID__&page=__P__&high_quality=1&autoplay=0',
+      cn: 1
+    };
+  }
+
+  function clampPlayerW(w) {
+    var d = state.playerDef || playerDefaults();
+    return Math.min(d.max, Math.max(d.min, Math.round(Number(w) || d.preset)));
+  }
+  function chatAreaWidth() {
+    var c = el.chat && (el.chat.querySelector(".im-chat-body") || el.chat);
+    var w = c ? c.clientWidth : 900;
+    // 96 = 聊天区左右内边距 + 头像列 + 滚动条；24 = 气泡内边距与边框。
+    // 两者都要扣掉，播放器才能完整放进气泡，同时不会把聊天区撑出横向滚动条。
+    var limit = Math.max(240, (w || 900) - 96 - 24);
+    // 预览页故意只撑到里面的宽度（外部页面截图时右侧有留白）
+    if (MOCK && MOCK.chatMax) limit = Math.min(limit, MOCK.chatMax);
+    return limit;
+  }
+  // 把宽度写到根节点上（只写 CSS 变量的值，不能写整条声明，否则会在值里生成 "--bd-player-w:" 前缀）
+  var currentW = 0;
+  function applyPlayerW(w) {
+    currentW = w;
+    if (!el.root) return;
+    el.root.style.setProperty("--bd-player-w", w + "px");
+    [].slice.call(document.querySelectorAll("#biliding-root .im-msg-main.wide")).forEach(function (m) {
+      var b = m.querySelector(".im-bubble.wide");
+      var pl = m.querySelector(".bd-player");
+      if (!b || !pl) return;
+      // 气泡是 border-box，左右各 11px 内边距 + 1px 边框，所以要比播放器宽 24px 才装得下
+      var bw = w + 24;
+      b.style.maxWidth = "none";
+      b.style.boxSizing = "border-box";
+      b.style.width = bw + "px";
+      pl.style.width = w + "px";
+      pl.style.maxWidth = "100%";
+      // 消息列要比气泡再宽一点（头像列 + 间距），否则气泡会被 74% 的旧规则压回去
+      m.style.maxWidth = (bw + 40) + "px";
+    });
+  }
+
+  function refreshPlayerVars() {
+    if (!el.root) return;
+    var d = state.playerDef || playerDefaults();
+    var limit = Math.max(d.min, chatAreaWidth());
+    var saved = Number(lsGet(LS.playerW, 0)) || 0;
+    var w = clampPlayerW(saved || d.preset);
+    if (w > limit) w = limit;
+    var player = el.chat && el.chat.querySelector(".bd-player");
+    if (player) player.classList.toggle("sized", !!saved);
+    state.playerW = w;
+    applyPlayerW(w);
+  }
+  function setPlayerWidth(px, playerEl) {
+    var d = state.playerDef || playerDefaults();
+    var limit = Math.max(d.min, chatAreaWidth());
+    var w = clampPlayerW(px);
+    if (w > limit) w = limit;
+    // 夹到上限时也存「用户点的是哪一档」，否则下次进来会被重新夹小、看起来像没生效
+    state.playerW = w;
+    applyPlayerW(w);
+    lsSet(LS.playerW, String(clampPlayerW(px)));
+    if (playerEl) playerEl.classList.add("sized");
+    return w;
+  }
+  function applySavedPlayerWidth(scope) {
+    refreshPlayerVars();
+    if (scope) [].slice.call(scope.querySelectorAll(".bd-player")).forEach(function (p) {
+      if (Number(lsGet(LS.playerW, 0)) > 0) p.classList.add("sized");
+    });
+  }
+
+  function bindPlayerResize(playerEl, handle) {
+    var grip = handle || playerEl.querySelector(".bd-player-grip");
+    if (!grip || grip.dataset.bound) return;
+    grip.dataset.bound = "1";
+    var dragging = false, startX = 0, startW = 0;
+    grip.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      dragging = true;
+      startX = e.clientX;
+      startW = playerEl.getBoundingClientRect().width;
+      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    grip.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      setPlayerWidth(startW + e.clientX - startX, playerEl);
+    });
+    function end() {
+      if (!dragging) return;
+      dragging = false;
+      var w = Math.round(playerEl.getBoundingClientRect().width);
+      toast("播放器宽度 " + w + "px，已记住");
+    }
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+  }
+
+  function togglePlayerFull(playerEl, on) {
+    var full = typeof on === "boolean" ? on : !playerEl.classList.contains("full");
+    playerEl.classList.toggle("full", full);
+    if (el.root) el.root.classList.toggle("player-full", full);
+    var btn = playerEl.querySelector('[data-pbtn="full"]');
+    if (btn) btn.innerHTML = full ? SVG.shrink : SVG.expand;
+    // 退出全屏后按当前聊天区宽度重算一次
+    if (!full && el.root) refreshPlayerVars();
+    if (document.fullscreenElement && !full) {
+      try { document.exitFullscreen(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function openPlayerSizeMenu(anchor) {
+    [].slice.call(document.querySelectorAll(".bd-size-menu")).forEach(function (m) { m.remove(); });
+    var d = state.playerDef || playerDefaults();
+    var limit = chatAreaWidth();
+    var cur = Number(lsGet(LS.playerW, 0)) || d.preset;
+    var presets = [
+      { label: "小", w: 480 },
+      { label: "中", w: 720 },
+      { label: "大", w: 960 },
+      { label: "铺满聊天区", w: 0 }
+    ];
+    var menu = document.createElement("div");
+    menu.className = "bd-size-menu";
+    menu.innerHTML = presets.map(function (p, i) {
+      // 档位超过聊天区宽度时会一起被夹到上限，只给真正匹配的那一档打勾
+      var real = p.w ? Math.min(p.w, limit) : limit;
+      var on = Math.abs(real - cur) < 32 && (i === presets.length - 1 || p.w <= limit);
+      return '<div class="it' + (on ? " on" : "") + '" data-w="' + real + '">' +
+        '<span>' + p.label + '</span><span class="k">' + real + "px</span></div>";
+    }).join("") +
+      '<div class="sep"></div>' +
+      '<div class="it" data-pact="full">' + '<span>全屏</span><span class="k">Esc 退出</span></div>' +
+      '<div class="it" data-pact="blur">' +
+      '<span>会议背景（模糊本页）</span><span class="k">' + (state.blur ? "开" : "关") + '</span></div>' +
+      '<div class="sep"></div>' +
+      '<div class="it" data-pact="title"><span>改标签页标题</span><span class="k">Esc 取消</span></div>';
+    document.body.appendChild(menu);
+    var r = anchor.getBoundingClientRect();
+    menu.style.top = Math.round(Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + "px";
+    menu.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))) + "px";
+    menu.addEventListener("click", function (e) {
+      var it = e.target.closest(".it");
+      if (!it) return;
+      var player = el.chat.querySelector(".bd-player");
+      if (it.dataset.pact === "full") {
+        menu.remove();
+        if (player) togglePlayerFull(player, true);
+        return;
+      }
+      if (it.dataset.pact === "blur") {
+        menu.remove();
+        setBlur(!state.blur);
+        if (player) menu.remove();
+        return;
+      }
+      if (it.dataset.pact === "title") {
+        menu.remove();
+        editAppTitle();
+        return;
+      }
+      if (!it.dataset.w) return;
+      var w = setPlayerWidth(Number(it.dataset.w), player);
+      menu.remove();
+      toast("播放器宽度 " + w + "px");
+    });
+    setTimeout(function () {
+      document.addEventListener("mousedown", function off(ev) {
+        if (menu.contains(ev.target)) return;
+        menu.remove();
+        document.removeEventListener("mousedown", off);
+      });
+    }, 0);
+  }
+
+  // ---------- 播放源 ----------
+  // 站点自带的播放器组件源码里就有 player.bilibili.com 的 iframe。
+  // 建一个同源 iframe 放进去，再把这个片段搬进聊天卡：播放器本身的清晰度 / 登录态 / 弹幕 / 全屏全部保留。
+  function findSitePlayerTpl() {
+    try {
+      var out = [];
+      // 站内播放器是 B站自己的页面，样式表同源，cssRules 读得到
+      for (var i = 0; i < document.styleSheets.length; i++) {
+        var ss = document.styleSheets[i], rules;
+        try { rules = ss.cssRules; } catch (e) { continue; }
+        if (!rules) continue;
+        for (var j = 0; j < rules.length; j++) if (rules[j].cssText) out.push(rules[j].cssText);
+      }
+      var text = out.join("\n");
+      var alias = /bilipugins\/svg\/icons\.svg#([A-Za-z]{1,3})-player\.([A-Za-z0-9]{6,}-[0-9]+)/.exec(text);
+      var d = playerDefaults();
+      if (alias) d.name = "site";
+      d.cn = alias ? (alias[2].charCodeAt(0) % 9) + 1 : 1;
+      state.playerDef = d;
+      return d;
+    } catch (e) {
+      state.playerDef = playerDefaults();
+      return state.playerDef;
+    }
+  }
+  function embedSrc(bvid, page) {
+    var d = state.playerDef || playerDefaults();
+    var tpl = String(d.tpl || playerDefaults().tpl);
+    return tpl.replace(/__BVID__/g, encodeURIComponent(bvid)).replace(/__P__/g, page || 1);
+  }
+  function playFrameHtml(bvid, page) {
+    return '<div class="bd-player-main"><iframe src="' + esc(embedSrc(bvid, page)) + '" ' +
+      'allow="autoplay; fullscreen; picture-in-picture" allowfullscreen scrolling="no" frameborder="0"></iframe></div>';
+  }
+  function startPlayback(playerEl, bvid, page) {
+    var main = playerEl.querySelector(".bd-player-main");
+    if (!main) {
+      main = document.createElement("div");
+      main.className = "bd-player-main";
+      playerEl.insertBefore(main, playerEl.firstChild);
+    }
+    main.innerHTML = '<iframe src="' + esc(embedSrc(bvid, page)) + '" ' +
+      'allow="autoplay; fullscreen; picture-in-picture" allowfullscreen scrolling="no" frameborder="0"></iframe>';
+    var poster = playerEl.querySelector(".poster");
+    if (poster) poster.remove();
+    playerEl.classList.add("playing");
+  }
+  function playerToolsHtml() {
+    return '<div class="bd-player-tools">' +
+      '<button data-pbtn="size" title="播放器大小">' + SVG.resize + '</button>' +
+      '<button data-pbtn="full" title="全屏">' + SVG.expand + '</button>' +
+      '<button data-pbtn="go" title="在浏览器新标签打开">' + SVG.export + '</button>' +
+      '</div>';
+  }
+  function bindPlayerTools(playerEl, bvid) {
+    playerEl.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-pbtn]");
+      if (!b) return;
+      e.stopPropagation();
+      var act = b.getAttribute("data-pbtn");
+      if (act === "size") { openPlayerSizeMenu(b); return; }
+      if (act === "full") { togglePlayerFull(playerEl); return; }
+      if (act === "go") { try { window.open("https://www.bilibili.com/video/" + bvid + "/", "_blank"); } catch (err) { toast("浏览器拦截了新标签"); } return; }
+    });
+    // 只在 Esc 时退出全屏；用 once 的独立监听避免多次绑定
+    if (el.onEscFull) document.removeEventListener("keydown", el.onEscFull);
+    el.onEscFull = function (e) {
+      if (e.key !== "Escape") return;
+      if (playerEl.classList.contains("full")) togglePlayerFull(playerEl, false);
+    };
+    document.addEventListener("keydown", el.onEscFull);
+  }
+
+
+  // 顶栏「最大化」：有播放器就全屏播放器，否则把聊天区铺满
+  function togglePlayerFullOnChat() {
+    var player = el.chat && el.chat.querySelector(".bd-player");
+    if (player) { togglePlayerFull(player); return; }
+    toast("当前会话没有视频，窗口按钮只做样子");
+  }
+
+  // 会议背景：模糊本页，降低侧后方的可读性
+  function setBlur(on) {
+    state.blur = !!on;
+    lsSet(LS.blur, state.blur ? "1" : "0");
+    if (el.root) {
+      el.root.classList.toggle("page-blur", state.blur);
+      [].slice.call(el.root.querySelectorAll('[data-act="blur"]')).forEach(function (btn) {
+        btn.classList.toggle("on", state.blur);
+        if (btn.classList.contains("im-win")) btn.innerHTML = state.blur ? SVG["wall-off"] : SVG.wall;
+        else btn.setAttribute("title", state.blur ? "关闭会议背景" : "会议背景");
+      });
+    }
+  }
+  // 改标签页标题：弹一个自己的输入框（不弹系统的「此网页说…」）
+  function editAppTitle() { openTitleDialog(); }
+  function openTitleDialog() {
+    [].slice.call(document.querySelectorAll(".bd-title-dlg")).forEach(function (m) { m.remove(); });
+    var cs = el.root ? getComputedStyle(el.root) : null;
+    var dlg = document.createElement("div");
+    dlg.className = "bd-title-dlg";
+    dlg.innerHTML = '<div class="hd">标签页标题</div>' +
+      '<div class="row"><input type="text" value="' + esc(lsGet(LS.title, "")) + '" placeholder="' + esc(appTitle()) + '" maxlength="40"></div>' +
+      '<div class="hint">留空 = 恢复默认；保存后浏览器标签页立即变为该文字。</div>' +
+      '<div class="ft"><button class="ghost" data-do="cancel">取消</button><button class="ok" data-do="save">保存</button></div>';
+    document.body.appendChild(dlg);
+    var inp = dlg.querySelector("input");
+    var anchor = el.root && el.root.querySelector(".im-tb-apptitle");
+    var r = anchor ? anchor.getBoundingClientRect() : { left: 120, top: 10, bottom: 34 };
+    dlg.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - 300))) + "px";
+    dlg.style.top = Math.round(r.bottom + 8) + "px";
+    if (cs) {
+      dlg.style.setProperty("--c-panel", cs.getPropertyValue("--c-panel") || "#fff");
+      dlg.style.setProperty("--c-line", cs.getPropertyValue("--c-line") || "#E2E6EE");
+      dlg.style.setProperty("--c-text", cs.getPropertyValue("--c-text") || "#1F2329");
+      dlg.style.setProperty("--c-text3", cs.getPropertyValue("--c-text3") || "#86909C");
+      dlg.style.setProperty("--c-accent", cs.getPropertyValue("--c-accent") || "#1A7AF8");
+    }
+    inp.focus(); inp.select();
+    dlg.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-do]");
+      if (!b) return;
+      if (b.dataset.do === "save") {
+        setAppTitle(inp.value);
+        toast("标签页标题已改为「" + appTitle() + "」");
+      }
+      dlg.remove();
+    });
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { dlg.querySelector('[data-do="save"]').click(); }
+      if (e.key === "Escape") { dlg.remove(); }
+    });
   }
   // ======================= 22. 启动 =======================
   var CSS = CSS_CORE + CSS_DING + CSS_FEISHU + CSS_WECOM;
@@ -2207,6 +2724,8 @@
       try { url = new URL(a.getAttribute("href"), location.origin); } catch (err) { return; }
       if (url.origin !== location.origin) return;
       if (url.pathname !== "/" && !ROUTE_RE.test(url.pathname)) return;
+      // file:// 预览页（preview/harness.html）在根目录之外，不能当成站点首页
+      if (!MOCK && location.protocol !== "http:" && location.protocol !== "https:") return;
       e.preventDefault();
       navTo(url.pathname + url.search);
     });
@@ -2244,18 +2763,28 @@
     applyDark();
     injectStyle();
     paintFavicon();
+    installTitleObserver();
+    syncTitle(true);
     if (!MOCK) hideOriginalPage();
     buildShell();
     bindLinkIntercept();
     hookHistory();
     loadMe();
     applyRoute();
+    findSitePlayerTpl();
+    refreshPlayerVars();
+    setBlur(state.blur);
+    window.addEventListener("resize", function () { if (el.root) refreshPlayerVars(); });
     if (!MOCK) {
       var lastHref = location.href;
       setInterval(function () {
         if (location.href !== lastHref) { lastHref = location.href; applyRoute(); }
+        // 站内会反复改写标题 / 图标，定时兜底
+        syncTitle();
       }, 1200);
     }
+    // 右键菜单拦截要在页面自带的脚本之前生效
+    installContextMenuGuard();
   }
 
   function hideOriginalPage() {

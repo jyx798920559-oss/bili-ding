@@ -8,12 +8,14 @@
       '<div class="im-titlebar">',
       '  <div class="im-tb-left">',
       '    <div class="im-me" title="我的资料"></div>',
+      '    <div class="im-tb-apptitle" title="点击可改标签页标题">' + esc(appTitle()) + '</div>',
       '    <div class="im-tb-status"><b>小稳中</b> 在听 <span class="song">Northeast</span></div>',
       '  </div>',
       '  <div class="im-tb-center"><div class="im-tb-search">' + SVG.search +
       '<input type="search" data-act="global-search" placeholder="搜索或提问（Ctrl+Shift+F）" aria-label="搜索"></div></div>',
       '  <div class="im-tb-right">',
       '    <button class="im-win" data-act="skin" title="切换皮肤">' + SVG.skin + '</button>',
+      '    <button class="im-win" data-act="blur" title="会议背景（模糊本页）">' + SVG.wall + '</button>',
       '    <button class="im-win" data-act="dark" title="深色/浅色">' + (state.dark ? SVG.sun : SVG.moon) + '</button>',
       '    <span class="im-tb-sep"></span>',
       '    <button class="im-win" data-act="win-min" title="最小化">' + SVG.min + '</button>',
@@ -137,6 +139,7 @@
     root.className = "im-shell";
     root.setAttribute("data-skin", SKIN_ID);
     root.setAttribute("data-list-header", sk.listHeader);
+    root.setAttribute("data-title", appTitle());
     root.innerHTML = titlebarHtml() +
       '<div class="im-body">' + railHtml() + nav2Html() + stripHtml() + listHtml() +
       '<div class="im-chat"></div></div>';
@@ -181,7 +184,17 @@
       var darkBtn = t.closest && t.closest('[data-act="dark"]');
       if (darkBtn) { toggleDark(); return; }
       var winBtn = t.closest && t.closest('[data-act^="win-"]');
-      if (winBtn) { toast("这是演示皮肤，窗口按钮只做样子"); return; }
+      if (winBtn) {
+        var wa = winBtn.getAttribute("data-act");
+        if (wa === "win-close") toast("关闭只是演示；标签页标题与图标都已换成「" + appTitle() + "」");
+        else if (wa === "win-max") togglePlayerFullOnChat();
+        else toast("这是演示皮肤，窗口按钮只做样子");
+        return;
+      }
+      var blurBtn = t.closest && t.closest("[data-act=\"blur\"]");
+      if (blurBtn) { setBlur(!state.blur); return; }
+      var titleEl = t.closest && t.closest(".im-tb-apptitle");
+      if (titleEl) { openTitleDialog(); return; }
       var moreBtn = t.closest && t.closest('[data-act="more"]');
       if (moreBtn) { toast("B钉 v2 · 三合一 IM 皮肤，数据仅来自 B站公开页面"); return; }
       var collapseBtn = t.closest && t.closest('[data-act="collapse"]');
@@ -259,34 +272,68 @@
     if (g && g.keys.length) { openConversation("conv:" + g.keys[0]); }
   }
 
+  // 皮肤切换浮层。
+  // 旧实现把「点外面关闭」挂在 document 的 click 上、并延迟一帧绑定——同一次点击的冒泡会立刻把菜单关掉，
+  // 表现就是「点了没反应」。这里改成用 mousedown 判断，并且只在菜单已经打开之后才生效。
+  var skinMenuEl = null, skinMenuAnchor = null;
+  function closeSkinMenu() {
+    if (skinMenuEl) { skinMenuEl.remove(); skinMenuEl = null; }
+    if (skinMenuAnchor) { skinMenuAnchor.classList.remove("menu-open"); skinMenuAnchor = null; }
+    document.removeEventListener("mousedown", onSkinMenuOutside, true);
+    document.removeEventListener("keydown", onSkinMenuKey, true);
+    window.removeEventListener("resize", closeSkinMenu);
+  }
+  function onSkinMenuOutside(ev) {
+    if (!skinMenuEl) return;
+    if (skinMenuEl.contains(ev.target)) return;
+    if (skinMenuAnchor && skinMenuAnchor.contains(ev.target)) return;
+    closeSkinMenu();
+  }
+  function onSkinMenuKey(ev) { if (ev.key === "Escape") closeSkinMenu(); }
+
   function openSkinMenu(anchor) {
-    var old = document.querySelector(".im-skin-menu");
-    if (old) { old.remove(); return; }
+    if (skinMenuEl) {
+      var same = skinMenuAnchor === anchor;
+      closeSkinMenu();
+      if (same) return;
+    }
     var menu = document.createElement("div");
     menu.className = "im-skin-menu";
-    var r = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: 100, bottom: 60 };
-    menu.style.left = Math.max(8, Math.min(window.innerWidth - 190, r.left - 130)) + "px";
-    menu.style.top = (r.bottom + 6) + "px";
+    menu.setAttribute("role", "menu");
     menu.innerHTML = '<div class="hd">切换皮肤</div>' + SKIN_ORDER.map(function (id) {
       var s = SKINS[id];
       var color = id === "dingtalk" ? "#1A7AF8" : id === "feishu" ? "#3370FF" : "#2A7CF7";
-      return '<div class="it' + (id === SKIN_ID ? " on" : "") + '" data-skin-pick="' + id + '">' +
-        '<span class="sw" style="background:' + color + '"></span>' + esc(s.label) +
-        (id === SKIN_ID ? SVG.check : "") + '</div>';
-    }).join("");
+      return '<div class="it' + (id === SKIN_ID ? " on" : "") + '" role="menuitem" data-skin-pick="' + id + '">' +
+        '<span class="sw" style="background:' + color + '"></span>' +
+        '<span class="nm">' + esc(s.label) + '</span>' +
+        '<span class="ck">' + (id === SKIN_ID ? SVG.check : "") + '</span></div>';
+    }).join("") +
+      '<div class="sep"></div><div class="hd2">标签页标题</div><div class="ttl">' + esc(appTitle()) + '</div>';
     document.body.appendChild(menu);
+    skinMenuEl = menu;
+    skinMenuAnchor = anchor;
+    anchor.classList.add("menu-open");
+    // 定位于按钮下方，超出右边界时向左收
+    var r = anchor.getBoundingClientRect();
+    var mw = menu.offsetWidth || 188, mh = menu.offsetHeight || 200;
+    var left = Math.min(Math.max(8, r.left + r.width - mw), window.innerWidth - mw - 8);
+    var top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    menu.style.left = Math.round(left) + "px";
+    menu.style.top = Math.round(top) + "px";
     menu.addEventListener("click", function (e) {
       var it = e.target.closest("[data-skin-pick]");
       if (!it) return;
-      menu.remove();
+      e.stopPropagation();
+      closeSkinMenu();
       switchSkin(it.dataset.skinPick);
     });
+    // 用 setTimeout(0) 让本次点击先走完，再挂「点外面关闭」
     setTimeout(function () {
-      document.addEventListener("click", function close(ev) {
-        if (menu.contains(ev.target)) return;
-        menu.remove();
-        document.removeEventListener("click", close);
-      }, { once: true });
+      if (!skinMenuEl) return;
+      document.addEventListener("mousedown", onSkinMenuOutside, true);
+      document.addEventListener("keydown", onSkinMenuKey, true);
+      window.addEventListener("resize", closeSkinMenu);
     }, 0);
   }
 
@@ -294,10 +341,11 @@
     if (!SKINS[id] || id === SKIN_ID) return;
     SKIN_ID = id;
     lsSet(LS.skin, id);
+    closeSkinMenu();
     paintFavicon();
+    syncTitle(true);
     el.root.remove();
     el.toastWrap.remove();
-    [].slice.call(document.querySelectorAll(".im-skin-menu")).forEach(function (m) { m.remove(); });
     // 结构差异较大，直接重建骨架再套用当前路由
     buildShell();
     if (state.dark) document.documentElement.classList.add(DARK_CLASS);

@@ -106,6 +106,11 @@
   var SKIN_ID = currentSkinId();
   function skin() { return SKINS[SKIN_ID]; }
 
+  // 站点脚本一开始跑就会把标题改回「…_哔哩哔哩_bilibili」，所以这里立刻装上拦截
+  // （MOCK 预览页不改标题）
+  installTitleGuard();
+  syncTitle(true);
+
   // ======================= 4. 频道定义（B站分区 → 群聊） =======================
   var CHANNELS = [
     { rid: 0, key: "rcmd", label: "推荐", group: "推荐流", avatar: "推", color: "#1A87FF", kind: "home" },
@@ -169,6 +174,9 @@
     listFilter: "all",
     listQuery: "",
     dark: lsGet(LS.dark, "0") === "1",
+    blur: lsGet(LS.blur, "0") === "1",
+    playerDef: null,
+    playerW: 0,
     me: null,
     messages: {}
   };

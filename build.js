@@ -8,6 +8,7 @@ const dir = path.join(__dirname, "src");
 const order = [
   "00-meta.js",
   "10-core.js",
+  "12-title.js",
   "15-skins.js",
   "20-data.js",
   "30-css-core.js",
@@ -16,6 +17,7 @@ const order = [
   "36-css-wecom.js",
   "40-shell.js",
   "50-render.js",
+  "55-player.js",
   "90-boot.js"
 ];
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B钉 · B站 IM 皮肤（钉钉 / 飞书 / 企业微信）
 // @namespace    biliding.local
-// @version      2.0.0
+// @version      2.1.0
 // @author       BiliDing
 // @description  把 B 站装进办公 IM：首页推荐流变成消息会话、分区变成群聊、视频页变成单聊、评论区变成聊天记录。内置钉钉 / 飞书 / 企业微信三套皮肤，一键切换。纯前端皮肤，不写 B站任何数据。
 // @match        https://www.bilibili.com/*

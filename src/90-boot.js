@@ -50,6 +50,8 @@
       try { url = new URL(a.getAttribute("href"), location.origin); } catch (err) { return; }
       if (url.origin !== location.origin) return;
       if (url.pathname !== "/" && !ROUTE_RE.test(url.pathname)) return;
+      // file:// 预览页（preview/harness.html）在根目录之外，不能当成站点首页
+      if (!MOCK && location.protocol !== "http:" && location.protocol !== "https:") return;
       e.preventDefault();
       navTo(url.pathname + url.search);
     });
@@ -87,18 +89,28 @@
     applyDark();
     injectStyle();
     paintFavicon();
+    installTitleObserver();
+    syncTitle(true);
     if (!MOCK) hideOriginalPage();
     buildShell();
     bindLinkIntercept();
     hookHistory();
     loadMe();
     applyRoute();
+    findSitePlayerTpl();
+    refreshPlayerVars();
+    setBlur(state.blur);
+    window.addEventListener("resize", function () { if (el.root) refreshPlayerVars(); });
     if (!MOCK) {
       var lastHref = location.href;
       setInterval(function () {
         if (location.href !== lastHref) { lastHref = location.href; applyRoute(); }
+        // 站内会反复改写标题 / 图标，定时兜底
+        syncTitle();
       }, 1200);
     }
+    // 右键菜单拦截要在页面自带的脚本之前生效
+    installContextMenuGuard();
   }
 
   function hideOriginalPage() {

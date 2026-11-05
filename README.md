@@ -5,7 +5,7 @@
 三套皮肤内置，顶栏一键切换，偏好本地保存。
 
 [![UserScript](https://img.shields.io/badge/UserScript-Tampermonkey-1A7AF8)](https://www.tampermonkey.net/)
-[![version](https://img.shields.io/badge/version-2.0.0-3370FF)](#)
+[![version](https://img.shields.io/badge/version-2.1.0-3370FF)](#)
 [![license](https://img.shields.io/badge/license-MIT-00A870)](./LICENSE)
 
 ---
@@ -53,6 +53,10 @@ https://github.com/jyx798920559-oss/bili-ding/raw/main/biliding.user.js
 | 首页推荐 | 「推荐流」群聊，视频以消息卡片推送 |
 | 分区 / 热门 | 「内部群」，消息流是分区内最新视频 |
 | 视频页 `/video/BVxxx` | 与 UP 主的单聊：发来一个视频播放器 + 评论区变成聊天记录 |
+| 视频播放 | 页内嵌**官方 B站播放器**（`player.bilibili.com` iframe），清晰度 / 登录态 / 弹幕 / 自带全屏都与网页端一致，不再弹「去 B站看高清」 |
+| 播放器大小 | 播放器工具条「大小」菜单（小 / 中 / 大 / 铺满聊天区）+ 右下角拖拽，默认铺满可用宽度，支持整页全屏（Esc 退出），宽度本地记忆 |
+| 标签页伪装 | `<title>` 固定为「云枢科技 · 钉钉 / 飞书 / 企业微信」（跟随皮肤，可右键改自定义标题），favicon 换成内联 SVG；B站 SPA 改写标题也会被拦回 |
+| 会议背景 | 顶栏 / 聊天头部「投影」按钮，一键模糊页面内容，防止背后的人认出画面 |
 | 搜索 | 顶栏搜索框输入 ≥2 字回车，走 B站全站搜索 |
 | 通讯录 / 工作台 | 装饰入口，按钉钉长相保留，点了不跳外链 |
 | 深色模式 | 顶栏月亮按钮，偏好持久化 |
@@ -97,6 +101,7 @@ node check.js            # 静态自检：图标引用、皮肤 CSS 块、CSS �
 src/00-meta.js       UserScript 元数据（@name/@match/@version…）
 src/10-core.js       工具函数 + 64 个内联 SVG 图标
 src/15-skins.js      三皮肤配置（导航项、输入区、分组树）+ B站频道映射
+src/12-title.js      标签页标题 / favicon 伪装（含 B站 SPA 改写兜底）
 src/20-data.js       B站接口 / 路由解析 / favicon
 src/30-css-core.js   公共骨架样式（全部走 CSS 变量）
 src/32-css-ding.js   钉钉皮肤
@@ -104,6 +109,7 @@ src/34-css-feishu.js 飞书皮肤
 src/36-css-wecom.js  企业微信皮肤
 src/40-shell.js      骨架构建、事件绑定、皮肤切换、列表拖拽
 src/50-render.js     会话列表 / 聊天区 / 输入区 / 视频卡片 / 搜索
+src/55-player.js     播放器尺寸 / 全屏 / 官方播放器嵌入 / 会议背景 / 自定义标题
 src/90-boot.js       启动、路由跟随、history 补丁
 ```
 

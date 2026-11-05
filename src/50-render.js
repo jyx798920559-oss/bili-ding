@@ -110,13 +110,18 @@
       ? '<img src="' + esc(o.img) + '" alt="">'
       : esc(o.avatar || "群");
     var acts = [
+      { i: "wall", t: state.blur ? "关闭会议背景" : "会议背景", act: "blur", on: state.blur },
       { i: "phone", t: "语音通话" },
       { i: "folder", t: "群文件" },
       { i: "adduser", t: "添加成员" },
       { i: "search", t: "搜索聊天记录" },
       { i: "settings", t: "会话设置" }
     ].map(function (a) {
-      return '<button class="im-icon-btn" title="' + a.t + '" data-deco="' + a.t + '">' + SVG[a.i] + '</button>';
+      var icon = SVG[a.i] || "";
+      if (a.act === "blur") {
+        return '<button class="im-icon-btn' + (a.on ? " on" : "") + '" title="' + a.t + '" data-act="blur">' + icon + '</button>';
+      }
+      return '<button class="im-icon-btn" title="' + a.t + '" data-deco="' + a.t + '">' + icon + '</button>';
     }).join("");
     return '<div class="im-chat-head">' +
       '<div class="av" style="background:' + esc(o.color || "#1A7AF8") + '">' + av + '</div>' +
@@ -164,6 +169,11 @@
     scrollChatToBottom();
     el.chat.querySelectorAll(".im-icon-btn").forEach(function (b) {
       if (b.dataset.bound) return;
+      if (b.dataset.act === "blur") {
+        b.dataset.bound = "1";
+        b.addEventListener("click", function () { setBlur(!state.blur); });
+        return;
+      }
       b.dataset.bound = "1";
       b.addEventListener("click", function () { toast("「" + (b.title || "按钮") + "」是装饰按钮"); });
     });
@@ -204,7 +214,7 @@
       '<div class="im-msg-main' + (o.wide ? " wide" : "") + '">' +
       (isMe ? "" : '<div class="im-msg-meta"><span class="im-msg-author">' + esc(o.author || "") + '</span>' +
         (o.time ? '<span class="im-msg-time">' + esc(o.time) + '</span>' : "") + '</div>') +
-      '<div class="im-bubble' + (o.wide ? " wide" : "") + '">' +
+      '<div class="im-bubble' + (o.wide ? " wide" : "") + '"' + (o.wide ? ' data-bd-player-w="1"' : "") + '>' +
       (o.quote ? '<div class="bd-quote">' + o.quote + '</div>' : "") + o.body + '</div>' +
       (isMe ? '<div class="im-read">已读</div>' : "") +
       (o.extra || "") +
@@ -423,7 +433,6 @@
       return apiReplies(v.aid, 1).then(function (r) { return { v: v, r: r }; }, function () { return { v: v, r: null }; });
     }).then(function (res) {
       paintVideoConversation(res.v, res.r, route);
-      document.title = String(res.v.title || "").slice(0, 40) + " · B钉";
     }).catch(function (err) {
       el.chat.innerHTML = chatHeaderHtml({ name: "视频会话", sub: "打开失败" }) +
         '<div class="im-empty"><div>会话打开失败：' + esc(err.message) + '</div></div>' + composerHtml("", true);
@@ -434,16 +443,18 @@
   function paintVideoConversation(v, r, route) {
     var up = v.owner || {}, stat = v.stat || {};
     var poster = toHttp(v.pic || "");
-    var embed = "//player.bilibili.com/player.html?bvid=" + encodeURIComponent(v.bvid) + "&page=" + (route.page || 1) + "&high_quality=1&danmaku=1&autoplay=0";
+    var page = route.page || 1;
     var head = chatHeaderHtml({
       name: up.name || "视频会话", tag: "UP主",
       sub: (v.tname || "视频") + " · " + fmtCount(stat.view) + "播放 · " + fmtCount(stat.danmaku) + "弹幕",
       img: toHttp(up.face || ""), color: "#5B8DEF",
-      extraActs: '<button class="im-icon-btn" title="播放器大小" data-act="player-size">' + SVG.resize + '</button>'
+      extraActs: '<button class="im-icon-btn" title="播放器大小 / 全屏" data-act="player-size">' + SVG.resize + '</button>'
     });
-    var card = '<div class="bd-player"><div class="poster" style="background-image:url(' + esc(poster) + ')">' +
+    var card = '<div class="bd-player">' +
+      '<div class="poster" style="background-image:url(' + esc(poster) + ')">' +
       '<button class="btn">' + SVG.play + '播放视频</button></div>' +
-      '<span class="bd-player-hint">拖右下角可调大小</span></div>' +
+      playerToolsHtml() +
+      '<span class="bd-player-hint">拖右下角调大小 · 双击全屏</span></div>' +
       '<div style="margin-top:9px;font-size:14px;font-weight:600;line-height:1.5">' + esc(v.title) + '</div>' +
       '<div class="bd-stats">' +
       '<span class="bd-stat">' + SVG.play + fmtCount(stat.view) + ' 播放</span>' +
@@ -480,16 +491,25 @@
     if (playerEl) {
       bindPlayerResize(playerEl);
       applySavedPlayerWidth(el.chat);
+      // 渲染完再按聊天区真实宽度算一次（上面那步时聊天区还没布局出来）
+      refreshPlayerVars();
+      setTimeout(refreshPlayerVars, 60);
       var posterEl = playerEl.querySelector(".poster");
       posterEl.addEventListener("click", function () {
-        posterEl.parentNode.innerHTML = '<iframe src="' + embed + '" allow="autoplay; fullscreen" allowfullscreen scrolling="no" frameborder="0"></iframe>' +
-          '<span class="bd-player-hint">拖右下角可调大小</span>';
-        // iframe 里的点击到不了外层，用可拖动的手柄代替右下角
-        var grip = document.createElement("div");
-        grip.className = "bd-player-grip";
-        playerEl.appendChild(grip);
-        bindPlayerResize(playerEl, grip);
+        startPlayback(playerEl, v.bvid, page);
+        playerEl.querySelectorAll(".bd-player-tools, .bd-player-grip").forEach(function (n) { n.style.display = ""; });
       });
+      // 控件要盖在 iframe 上（iframe 会吃掉指针事件），所以播放后仍然显示
+      playerEl.addEventListener("dblclick", function (e) {
+        if (e.target.closest(".bd-player-tools")) return;
+        togglePlayerFull(playerEl);
+      });
+      // 拖拽手柄：播放后 iframe 会盖住右下角，改成放在工具条里常驻
+      var grip = document.createElement("div");
+      grip.className = "bd-player-grip";
+      playerEl.appendChild(grip);
+      bindPlayerResize(playerEl, grip);
+      bindPlayerTools(playerEl, v.bvid);
       var sizeBtn = el.chat.querySelector('[data-act="player-size"]');
       if (sizeBtn) {
         sizeBtn.addEventListener("click", function (e) {
@@ -500,84 +520,6 @@
     }
   }
 
-  // 播放器宽度：可拖右下角、也可弹菜单选档位，结果写 localStorage
-  var PLAYER_MIN_W = 280, PLAYER_MAX_W = 1280;
-  var PLAYER_PRESETS = [
-    { label: "小", w: 480 },
-    { label: "中", w: 720 },
-    { label: "大", w: 960 },
-    { label: "自适应", w: 0 }
-  ];
-  function setPlayerWidth(px, playerEl) {
-    var root = el.root;
-    var w = Number(px) || 0;
-    if (w > 0) w = Math.min(PLAYER_MAX_W, Math.max(PLAYER_MIN_W, Math.round(w)));
-    if (w > 0) root.style.setProperty("--bd-player-w", w + "px");
-    else root.style.removeProperty("--bd-player-w");
-    lsSet(LS.playerW, String(w));
-    if (playerEl) playerEl.classList.toggle("sized", w > 0);
-    return w;
-  }
-  function applySavedPlayerWidth(scope) {
-    var w = Number(lsGet(LS.playerW, 0)) || 0;
-    if (w <= 0) return;
-    el.root.style.setProperty("--bd-player-w", w + "px");
-    if (scope) [].slice.call(scope.querySelectorAll(".bd-player")).forEach(function (p) { p.classList.add("sized"); });
-  }
-  function bindPlayerResize(playerEl, handle) {
-    var grip = handle || playerEl.querySelector(".bd-player-grip");
-    if (!grip || grip.dataset.bound) return;
-    grip.dataset.bound = "1";    var dragging = false, startX = 0, startW = 0;
-    grip.addEventListener("pointerdown", function (e) {
-      if (e.button !== 0) return;
-      dragging = true; startX = e.clientX;
-      startW = playerEl.getBoundingClientRect().width;
-      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-      e.preventDefault(); e.stopPropagation();
-    });
-    grip.addEventListener("pointermove", function (e) {
-      if (!dragging) return;
-      setPlayerWidth(startW + e.clientX - startX, playerEl);
-    });
-    function end() {
-      if (!dragging) return;
-      dragging = false;
-      var w = Math.round(playerEl.getBoundingClientRect().width);
-      setPlayerWidth(w, playerEl);
-      toast("播放器宽度 " + w + "px，已记住");
-    }
-    grip.addEventListener("pointerup", end);
-    grip.addEventListener("pointercancel", end);
-  }
-  function openPlayerSizeMenu(anchor) {
-    [].slice.call(document.querySelectorAll(".bd-size-menu")).forEach(function (m) { m.remove(); });
-    var cur = Number(lsGet(LS.playerW, 0)) || 0;
-    var menu = document.createElement("div");
-    menu.className = "bd-size-menu";
-    menu.innerHTML = PLAYER_PRESETS.map(function (p) {
-      var on = p.w === 0 ? cur === 0 : Math.abs(p.w - cur) < 24;
-      return '<div class="it' + (on ? " on" : "") + '" data-w="' + p.w + '">' +
-        '<span>' + p.label + '</span><span class="k">' + (p.w ? p.w + "px" : "铺满") + '</span></div>';
-    }).join("");
-    document.body.appendChild(menu);
-    var r = anchor.getBoundingClientRect();
-    menu.style.top = Math.round(r.bottom + 4) + "px";
-    menu.style.left = Math.round(Math.min(r.left, window.innerWidth - 150)) + "px";
-    menu.addEventListener("click", function (e) {
-      var it = e.target.closest(".it");
-      if (!it) return;
-      var w = setPlayerWidth(Number(it.dataset.w), el.chat.querySelector(".bd-player"));
-      menu.remove();
-      toast(w ? "播放器宽度 " + w + "px" : "播放器宽度：自适应");
-    });
-    setTimeout(function () {
-      document.addEventListener("mousedown", function off(ev) {
-        if (menu.contains(ev.target)) return;
-        menu.remove();
-        document.removeEventListener("mousedown", off);
-      });
-    }, 0);
-  }
 
   // ======================= 20. 通讯录 / 工作台 / 搜索 =======================
   function renderContacts() {
@@ -714,6 +656,22 @@
   var ROUTE_RE = /^\/(video\/|popular|c\/|v\/|anime\/|guochuang\/|variety\/|movie\/|tv\/|documentary\/|music\/|dance\/|game\/|knowledge\/|tech\/|food\/|life\/|ent\/|car\/|fashion\/|kichiku\/|douga\/|sports)/;
 
   function navTo(href) {
+    if (MOCK) { mockNav(href); return; }
     try { history.pushState(null, "", href); } catch (e) { location.href = href; return; }
+    applyRoute();
+  }
+
+  // 预览页只有一条 file:// 地址，切会话时直接改假路由，不碰真实 URL
+  function mockNav(href) {
+    if (!MOCK) return;
+    var m = /^\/video\/(BV[0-9A-Za-z]+)/.exec(href);
+    if (m) MOCK.route = { kind: "video", key: "video", bvid: m[1], page: 1 };
+    else if (href.indexOf("/popular") === 0) MOCK.route = { kind: "popular", key: "popular" };
+    else MOCK.route = { kind: "home", key: "home" };
+    var hit = /^\/c\/([a-z]+)\/?/.exec(href);
+    if (hit) {
+      var ch2 = channelByKey(hit[1]);
+      if (ch2) MOCK.route = { kind: "region", key: "region", channel: ch2 };
+    }
     applyRoute();
   }

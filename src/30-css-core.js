@@ -9,7 +9,9 @@
     font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
     -webkit-font-smoothing: antialiased;
   }
-  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap) {
+  /* 隐藏原站页面：用 visibility:hidden 而不是 display:none（B站脚本会读元素尺寸，display:none 会抛错）。
+     浮层（皮肤菜单 / 尺寸菜单 / 标题框）必须显式放行，否则会被这条规则一起藏掉。 */
+  html.im-theme body > *:not(#biliding-root):not(script):not(style):not(.im-toast-wrap):not(.im-skin-menu):not(.bd-size-menu):not(.bd-title-dlg) {
     visibility: hidden !important; pointer-events: none !important;
   }
 
@@ -38,6 +40,10 @@
   .im-tb-status { font-size: 12.5px; color: var(--c-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
   .im-tb-status b { font-weight: 500; color: var(--c-text); }
   .im-tb-status .song { color: var(--c-text3); }
+  /* 顶栏标题：直接用标签页标题，改标题时这里同步变 */
+  .im-tb-apptitle { font-size: 13px; font-weight: 600; color: var(--c-text); letter-spacing: .2px;
+    padding: 0 2px; cursor: default; user-select: none; }
+  .im-tb-apptitle:hover { color: var(--c-accent); }
   .im-tb-center { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; }
   .im-tb-search { width: min(520px, 100%); height: 26px; display: flex; align-items: center; gap: 6px;
     padding: 0 12px; border-radius: 13px; background: var(--c-search); border: 1px solid transparent;
@@ -256,12 +262,13 @@
   .bd-card-foot .up span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
   .bd-card-foot .sp { flex: 1; }
 
-  /* 播放器贴片（宽度可调，见 JS 里的 bindPlayerResize） */
+  /* 播放器贴片（宽度可调，见 JS 里的 bindPlayerResize）：
+     宽度写到 .im-shell 的 --bd-player-w 上，气泡/消息容器跟着一起放，才能「放大」而不是被 760px 裁掉 */
   .bd-player { width: min(var(--bd-player-w, 720px), 100%); aspect-ratio: 16 / 9;
     border-radius: 8px; overflow: hidden; background: #000; position: relative; }
-  /* 太小时用 min-width 会溢出气泡，改为跟随容器压窄 */
   .bd-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  /* 拖右下角改宽度，aspect-ratio 自动跟高度 */
+  .bd-player-main { position: absolute; inset: 0; background: #000; }
+  /* 右下角拖拽手柄 + 角上个「放大 / 全屏」按钮 */
   .bd-player-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; z-index: 4;
     cursor: nwse-resize; touch-action: none;
     background: linear-gradient(135deg, transparent 46%, rgba(255,255,255,.72) 46%, rgba(255,255,255,.72) 54%,
@@ -270,8 +277,21 @@
     font-size: 11px; color: rgba(255,255,255,.9); background: rgba(0,0,0,.5); border-radius: 4px;
     padding: 2px 6px; opacity: 0; transition: opacity .16s; }
   .bd-player:hover .bd-player-hint { opacity: 1; }
+  .bd-player-tools { position: absolute; right: 24px; bottom: 8px; z-index: 5; display: flex; gap: 4px;
+    opacity: 0; transition: opacity .16s; }
+  .bd-player:hover .bd-player-tools, .bd-player.full .bd-player-tools { opacity: 1; }
+  .bd-player-tools button { width: 26px; height: 26px; border: 0; border-radius: 5px; padding: 0;
+    background: rgba(0,0,0,.55); color: #fff; cursor: pointer; display: inline-flex;
+    align-items: center; justify-content: center; }
+  .bd-player-tools button:hover { background: rgba(0,0,0,.78); }
+  .bd-player-tools button svg { width: 14px; height: 14px; }
+  /* 播放器全屏 */
+  .bd-player.full { position: fixed !important; inset: 0; width: 100% !important; height: 100vh !important;
+    max-width: none !important; aspect-ratio: auto !important; border-radius: 0; z-index: 10001; }
+  .bd-player.full .bd-player-grip { display: none; }
+  .im-shell.player-full .im-chat-head { visibility: hidden; }
   /* 尺寸菜单 */
-  .bd-size-menu { position: fixed; z-index: 9998; min-width: 132px; padding: 6px; border-radius: 10px;
+  .bd-size-menu { position: fixed; z-index: 10000; min-width: 148px; padding: 6px; border-radius: 10px;
     background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
     animation: bd-fade .12s ease both; }
   .bd-size-menu .it { display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -279,6 +299,8 @@
   .bd-size-menu .it:hover { background: var(--c-hover); }
   .bd-size-menu .it.on { color: var(--c-accent); font-weight: 500; }
   .bd-size-menu .it .k { font-size: 11px; color: var(--c-text3); }
+  .bd-size-menu .it.danger { color: #E81123; }
+  .bd-size-menu .sep { height: 1px; background: var(--c-line); margin: 5px 4px; }
   .bd-player .poster { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     cursor: pointer; background-size: cover; background-position: center; }
   .bd-player .poster::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.4); }
@@ -286,6 +308,21 @@
     height: 36px; padding: 0 16px; border-radius: 18px; background: rgba(255,255,255,.95); color: #17181A;
     font-size: 13px; font-weight: 500; border: 0; cursor: pointer; }
   .bd-player .poster .btn svg { width: 15px; height: 15px; }
+  /* 改标题的小对话框 */
+  .bd-title-dlg { position: fixed; z-index: 10002; width: 280px; padding: 12px 14px 10px; border-radius: 12px;
+    background: var(--c-panel, #fff); border: 1px solid var(--c-line, #E2E6EE);
+    box-shadow: 0 16px 40px rgba(17,24,39,.2); color: var(--c-text, #1F2329);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; animation: bd-fade .12s ease both; }
+  .bd-title-dlg .hd { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .bd-title-dlg input { width: 100%; height: 30px; padding: 0 9px; border-radius: 7px; font-size: 13px;
+    border: 1px solid var(--c-line, #E2E6EE); background: transparent; color: inherit; outline: none; }
+  .bd-title-dlg input:focus { border-color: var(--c-accent, #1A7AF8); }
+  .bd-title-dlg .hint { font-size: 11px; color: var(--c-text3, #86909C); line-height: 1.5; margin: 7px 0 10px; }
+  .bd-title-dlg .ft { display: flex; justify-content: flex-end; gap: 8px; }
+  .bd-title-dlg button { height: 28px; padding: 0 14px; border-radius: 6px; font-size: 12.5px; cursor: pointer;
+    border: 1px solid transparent; font-family: inherit; }
+  .bd-title-dlg button.ghost { background: transparent; border-color: var(--c-line, #E2E6EE); color: inherit; }
+  .bd-title-dlg button.ok { background: var(--c-accent, #1A7AF8); color: #fff; }
   .bd-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .bd-stat { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--c-text3);
     background: var(--c-panel); border: 1px solid var(--c-line); border-radius: 11px; padding: 2px 8px; }
@@ -339,7 +376,7 @@
     border-top-color: var(--c-accent); animation: bd-spin .8s linear infinite; }
 
   /* 皮肤切换浮层 */
-  .im-skin-menu { position: fixed; z-index: 9998; min-width: 168px; padding: 6px; border-radius: 10px;
+  .im-skin-menu { position: fixed; z-index: 10000; min-width: 188px; padding: 6px; border-radius: 10px;
     background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
     animation: bd-fade .12s ease both; }
   .im-skin-menu .it { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px;
@@ -347,7 +384,15 @@
   .im-skin-menu .it:hover { background: var(--c-hover); }
   .im-skin-menu .it.on { color: var(--c-accent); font-weight: 500; }
   .im-skin-menu .it .sw { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 14px; }
+  .im-skin-menu .it .nm { flex: 1; }
+  .im-skin-menu .it .ck { width: 14px; height: 14px; display: inline-flex; }
+  .im-skin-menu .it .ck svg { width: 14px; height: 14px; }
   .im-skin-menu .hd { font-size: 11px; color: var(--c-text3); padding: 4px 10px 6px; }
+  .im-skin-menu .sep { height: 1px; background: var(--c-line); margin: 5px 4px; }
+  .im-skin-menu .hd2 { font-size: 11px; color: var(--c-text3); padding: 2px 10px 4px; }
+  .im-skin-menu .ttl { font-size: 12px; color: var(--c-text2); padding: 0 10px 6px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .im-win.menu-open { background: var(--c-hover); color: var(--c-text); }
 
   /* toast */
   .im-toast-wrap { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 9999;
@@ -359,9 +404,36 @@
   .im-resizer { position: absolute; top: 0; right: -3px; bottom: 0; width: 6px; cursor: col-resize; z-index: 8; }
   .im-resizer:hover { background: linear-gradient(90deg, transparent, var(--c-accent-weak), transparent); }
 
-  /* B站视频页 / 评论区专用排版 */
-  .im-bubble.wide { max-width: min(760px, 84%); }
-  .im-msg-main.wide { max-width: min(780px, 82%); }
+  /* B站视频页 / 评论区专用排版
+     注意：模板字符串里不能出现反引号，会直接把 String.raw 提前闭合。
+     规则：--bd-player-w 由 JS 写到 #biliding-root 上，气泡与消息列跟着放宽，播放器才能真正放大；
+     上限由 JS 按聊天区宽度算。 */
+  .im-bubble.wide, .im-bubble.wide.wide { max-width: min(var(--bd-bubble-w, 9999px), 100%); }
+  /* 消息列必须比气泡更宽，否则气泡会被 .im-msg-main 的 max-width 二次压住。
+     注意 .im-msg .im-msg-main 是 (0,2,0) 选择器，这里相应提高特异性才压得住。 */
+  .im-msg .im-msg-main.wide, .im-msg .im-msg-main.wide.wide {
+    max-width: min(calc(var(--bd-player-w, 720px) + 64px), calc(100% - 44px));
+  }
+  .im-msg-main.wide .im-bubble.wide, .im-msg-main.wide .im-bubble.wide[data-bd-player-w] {
+    width: min(calc(var(--bd-player-w, 720px) + 24px), 100%);
+  }
+  .im-bubble.wide .bd-player, .im-bubble.wide .bd-player.sized { width: min(var(--bd-player-w, 720px), 100%); }
+  /* 播放器全屏：必须比 .im-shell.page-blur .im-chat-body 的模糊更硬，所以带 !important */
+  .bd-player.full {
+    position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important;
+    max-width: none !important; aspect-ratio: auto !important; border-radius: 0 !important;
+    z-index: 10001 !important; filter: none !important;
+  }
+  .bd-player.full .bd-player-grip { display: none; }
+  .im-shell.player-full .im-chat-head { visibility: hidden; }
+
+  /* 会议背景：模糊聊天与列表，保留顶栏与播放器（全屏播放器不受影响） */
+  .im-shell.page-blur .im-rail,
+  .im-shell.page-blur .im-nav2,
+  .im-shell.page-blur .im-strip,
+  .im-shell.page-blur .im-list,
+  .im-shell.page-blur .im-chat-body,
+  .im-shell.page-blur .im-composer { filter: blur(7px) saturate(.8); transition: filter .2s ease; }
 
   /* 触屏 / 窄屏：把 rail 收成图标条 */
   @media (max-width: 1120px) {
