@@ -205,7 +205,10 @@
   .im-chat-head .sub { font-size: 11.5px; color: var(--c-text3); margin-top: 3px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
   .im-chat-head .acts { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+  /* 默认不横向滚动（否则播放器稍宽就在聊天区底部压出一条横向滚动条）；
+     只有 JS 判定「播放器确实比聊天列宽」时才加 .has-wide-player 打开横向滚动 */
   .im-chat-body { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 14px 22px 8px; }
+  .im-chat-body.has-wide-player { overflow-x: auto; }
 
   .im-daysep { text-align: center; margin: 12px 0 14px; }
   .im-daysep span { font-size: 11px; color: var(--c-text3); }
@@ -266,8 +269,21 @@
      宽度写到 .im-shell 的 --bd-player-w 上，气泡/消息容器跟着一起放，才能「放大」而不是被 760px 裁掉 */
   .bd-player { width: min(var(--bd-player-w, 720px), 100%); aspect-ratio: 16 / 9;
     border-radius: 8px; overflow: hidden; background: #000; position: relative; }
+  /* 拖过手柄后按用户给的宽高走，不再被 16:9 锁住（变量默认值与预设都由 JS 写） */
+  .bd-player.sized { aspect-ratio: auto; height: var(--bd-player-h, auto); }
   .bd-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .bd-player-main { position: absolute; inset: 0; background: #000; }
+  /* 浮窗：脱离聊天流，浮在整页之上，位置由 JS 写 left/top；拖顶部把手移动 */
+  .bd-player.float { position: fixed !important; z-index: 10000; margin: 0 !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,.45); resize: none; }
+  .bd-player.float .bd-player-hint { display: none; }
+  .bd-player-bar { display: none; }
+  .bd-player.float .bd-player-bar { position: absolute; left: 0; right: 0; top: 0; height: 28px; z-index: 7;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 0 10px;
+    background: linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,0)); color: rgba(255,255,255,.86);
+    font-size: 11.5px; cursor: move; touch-action: none; user-select: none; }
+  .bd-player.float .bd-player-bar .t { pointer-events: none; }
+  .bd-player.float .bd-player-tools { opacity: 1; }
   /* 右下角拖拽手柄 + 角上个「放大 / 全屏」按钮 */
   .bd-player-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; z-index: 4;
     cursor: nwse-resize; touch-action: none;
@@ -285,15 +301,14 @@
     align-items: center; justify-content: center; }
   .bd-player-tools button:hover { background: rgba(0,0,0,.78); }
   .bd-player-tools button svg { width: 14px; height: 14px; }
-  /* 播放器全屏 */
-  .bd-player.full { position: fixed !important; inset: 0; width: 100% !important; height: 100vh !important;
-    max-width: none !important; aspect-ratio: auto !important; border-radius: 0; z-index: 10001; }
-  .bd-player.full .bd-player-grip { display: none; }
-  .im-shell.player-full .im-chat-head { visibility: hidden; }
+  /* 播放器全屏（细则在下面宽高规则之后，那边必须压住气泡宽度，所以只保留那一份） */
   /* 尺寸菜单 */
-  .bd-size-menu { position: fixed; z-index: 10000; min-width: 148px; padding: 6px; border-radius: 10px;
+  .bd-size-menu { position: fixed; z-index: 10000; min-width: 220px; padding: 6px; border-radius: 10px;
     background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
     animation: bd-fade .12s ease both; }
+  .bd-size-control { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 10px; font-size: 12px; color: var(--c-text2); }
+  .bd-size-control input { grid-column: 1 / -1; width: 100%; accent-color: var(--c-accent); cursor: ew-resize; }
+  .bd-size-control output { color: var(--c-accent); font-variant-numeric: tabular-nums; }
   .bd-size-menu .it { display: flex; align-items: center; justify-content: space-between; gap: 10px;
     height: 32px; padding: 0 10px; border-radius: 7px; font-size: 13px; color: var(--c-text); cursor: pointer; }
   .bd-size-menu .it:hover { background: var(--c-hover); }
@@ -444,14 +459,41 @@
     width: min(calc(var(--bd-player-w, 720px) + 24px), 100%);
   }
   .im-bubble.wide .bd-player, .im-bubble.wide .bd-player.sized { width: min(var(--bd-player-w, 720px), 100%); }
+  /* 这些宽度规则特异性比 .bd-player.float 高，会把浮窗压回聊天宽度：浮窗/全屏状态一律让位给 JS 写的尺寸 */
+  .im-bubble.wide .bd-player.float, .im-bubble.wide .bd-player.full,
+  .im-bubble.wide .bd-player.float.sized, .im-bubble.wide .bd-player.full.sized {
+    width: auto; max-width: none;
+  }
   /* 播放器全屏：必须比 .im-shell.page-blur .im-chat-body 的模糊更硬，所以带 !important */
   .bd-player.full {
     position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important;
     max-width: none !important; aspect-ratio: auto !important; border-radius: 0 !important;
     z-index: 10001 !important; filter: none !important;
   }
-  .bd-player.full .bd-player-grip { display: none; }
+  .bd-player.full .bd-player-grip, .bd-player.full .bd-player-bar { display: none; }
   .im-shell.player-full .im-chat-head { visibility: hidden; }
+
+  /* 浮窗模式：祖先一旦带 filter / transform，就会成为 position:fixed 的包含块，
+     把「浮窗」重新钉回聊天区里；浮窗期间取消这些效果，浮窗才能真正脱离聊天区在整页移动。 */
+  .im-shell.player-float .im-chat-body,
+  .im-shell.player-float .im-rail,
+  .im-shell.player-float .im-nav2,
+  .im-shell.player-float .im-strip,
+  .im-shell.player-float .im-list,
+  .im-shell.player-float .im-composer { filter: none !important; }
+  /* 真正的元凶：消息行 .im-msg 带入场动画 bd-fade，动画结束后仍留着 transform: matrix(...)，
+     transform 祖先会让 position:fixed 变成「相对该祖先」定位，于是浮窗的 left/top 和眼睛看到的位置不一致，
+     拖起来就是在飘。浮窗期间把播放器所有祖先的 transform / filter / perspective / contain 一并清掉。 */
+  .im-shell.player-float .im-chat-body,
+  .im-shell.player-float .im-msg,
+  .im-shell.player-float .im-msg-main,
+  .im-shell.player-float .im-bubble {
+    transform: none !important; filter: none !important;
+    perspective: none !important; contain: none !important; will-change: auto !important;
+  }
+  /* 浮窗要在 iframe 之上收到指针事件，否则把手拖不动。
+     注意这里不能写 position:fixed !important —— 会把 JS 设置的 absolute 坐标系顶掉，浮窗就又飘了 */
+  .im-shell.player-float .bd-player.float { z-index: 10000 !important; }
 
   /* 会议背景：模糊聊天与列表，保留顶栏与播放器（全屏播放器不受影响） */
   .im-shell.page-blur .im-rail,

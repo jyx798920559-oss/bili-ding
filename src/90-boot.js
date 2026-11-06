@@ -98,7 +98,12 @@
     refreshPlayerVars();
     setBlur(state.blur);
     if (SKIN_OFF) applySkinOff();
-    window.addEventListener("resize", function () { if (el.root) refreshPlayerVars(); });
+    window.addEventListener("resize", function () {
+      if (!el.root) return;
+      refreshPlayerVars();
+      var pl = el.chat && el.chat.querySelector(".bd-player");
+      if (pl) applyFloatPos(pl);
+    });
     if (!MOCK) {
       var lastHref = location.href;
       setInterval(function () {

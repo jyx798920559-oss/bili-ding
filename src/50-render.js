@@ -163,10 +163,22 @@
     var body = el.chat && el.chat.querySelector(".im-chat-body");
     if (body) body.scrollTop = body.scrollHeight;
   }
+  function scrollChatToTop() {
+    var body = el.chat && el.chat.querySelector(".im-chat-body");
+    if (body) body.scrollTop = 0;
+  }
+
+  // 单聊（视频页）默认停在顶部：先看到播放器，不必每次手动往上拉。
+  // 其余会话保持「进群看最新消息」的 IM 习惯，仍然贴底。按当前会话 id 判断，不靠时序。
+  function scrollChatDefault() {
+    var id = state.activeConv || "";
+    if (id.indexOf("conv:video") === 0 || id.indexOf("video") === 0) { scrollChatToTop(); return; }
+    scrollChatToBottom();
+  }
 
   function bindChatCommon() {
     if (!el.chat) return;
-    scrollChatToBottom();
+    scrollChatDefault();
     el.chat.querySelectorAll(".im-icon-btn").forEach(function (b) {
       if (b.dataset.bound) return;
       if (b.dataset.act === "blur") {
@@ -241,13 +253,14 @@
 
   function videoMsgHtml(item, o) {
     o = o || {};
+    var who = aliasOf(o.author || item.owner);
     return msgHtml({
       me: !!o.me,
-      author: o.author || item.owner,
+      author: who,
       time: o.time || fmtRel(item.pubdate),
       face: o.face,
-      avatar: (o.author || item.owner || "?").slice(0, 1),
-      color: avColor(o.author || item.owner || ""),
+      avatar: (who || "?").slice(0, 1),
+      color: avColor(who || ""),
       body: videoCardHtml(item),
       bvid: item.bvid
     });
@@ -442,19 +455,23 @@
 
   function paintVideoConversation(v, r, route) {
     var up = v.owner || {}, stat = v.stat || {};
+    var upName = aliasOf(up.name || "视频会话");
     var poster = toHttp(v.pic || "");
     var page = route.page || 1;
     var head = chatHeaderHtml({
-      name: up.name || "视频会话", tag: "UP主",
+      name: upName, tag: "单聊",
       sub: (v.tname || "视频") + " · " + fmtCount(stat.view) + "播放 · " + fmtCount(stat.danmaku) + "弹幕",
       img: toHttp(up.face || ""), color: "#5B8DEF",
-      extraActs: '<button class="im-icon-btn" title="播放器大小 / 全屏" data-act="player-size">' + SVG.resize + '</button>'
+      extraActs: '<button class="im-icon-btn" title="浮窗 / 自由缩放（拖动调大小）" data-act="player-float">' + SVG.resize + '</button>' +
+        '<button class="im-icon-btn" title="播放器大小 / 全屏" data-act="player-size">' + SVG.expand + '</button>' +
+        '<button class="im-icon-btn' + (aliasOff() ? "" : " on") + '" title="化名显示（点一下切回真名）" data-act="alias">' + SVG.settings + '</button>'
     });
     var card = '<div class="bd-player">' +
+      '<div class="bd-player-bar"><span class="t">视频会话</span></div>' +
       '<div class="poster" style="background-image:url(' + esc(poster) + ')">' +
       '<button class="btn">' + SVG.play + '播放视频</button></div>' +
       playerToolsHtml() +
-      '<span class="bd-player-hint">拖右下角调大小 · 双击全屏</span></div>' +
+      '<span class="bd-player-hint">拖右下角改宽高 · 双击全屏</span></div>' +
       '<div style="margin-top:9px;font-size:14px;font-weight:600;line-height:1.5">' + esc(v.title) + '</div>' +
       '<div class="bd-stats">' +
       '<span class="bd-stat">' + SVG.play + fmtCount(stat.view) + ' 播放</span>' +
@@ -465,7 +482,7 @@
 
     var body = daysep(fmtDate(v.pubdate));
     body += msgHtml({
-      author: up.name || "UP主", face: toHttp(up.face || ""), time: fmtDate(v.pubdate),
+      author: upName, face: toHttp(up.face || ""), time: fmtDate(v.pubdate),
       body: card, wide: true
     });
     var replies = (r && r.replies) || [];
@@ -474,14 +491,25 @@
       replies.forEach(function (rep) {
         var m = rep.member || {};
         var txt = String((rep.content && rep.content.message) || "");
+        var uname = aliasOf(m.uname || "匿名");
         body += msgHtml({
-          author: m.uname || "匿名", face: m.avatar ? toHttp(m.avatar) : "",
-          avatar: (m.uname || "?").slice(0, 1), color: avColor(m.uname || ""),
+          author: uname, face: m.avatar ? toHttp(m.avatar) : "",
+          avatar: (uname || "?").slice(0, 1), color: avColor(uname),
           time: fmtRel(rep.ctime), body: esc(txt)
         });
       });
     } else {
       body += daysep("暂无评论");
+    }
+    // 正在播放时绝不重建聊天区：重建会把整页视频 iframe 一起销毁重载，画面停在黑屏/重新缓冲，
+    // 用户看到的就是「播放窗口卡住」。已经在播的播放器直接保留，只刷新外层信息。
+    var livePlayer = el.chat && el.chat.querySelector(".bd-player.playing");
+    if (livePlayer) {
+      var headSlot = el.chat.querySelector(".im-chat-head");
+      if (headSlot) headSlot.outerHTML = head;
+      bindChatCommon();
+      refreshPlayerVars();
+      return;
     }
     el.chat.innerHTML = head + '<div class="im-chat-body">' + body + '</div>' +
       composerHtml("评论功能请到 B站原页面（B钉不代发）", true);
@@ -515,6 +543,15 @@
         sizeBtn.addEventListener("click", function (e) {
           e.stopPropagation();
           openPlayerSizeMenu(sizeBtn);
+        });
+      }
+      var aliasBtn = el.chat.querySelector('[data-act="alias"]');
+      if (aliasBtn) aliasBtn.addEventListener("click", toggleAlias);
+      var floatBtn = el.chat.querySelector('[data-act="player-float"]');
+      if (floatBtn) {
+        floatBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          setPlayerFloat(playerEl);
         });
       }
     }

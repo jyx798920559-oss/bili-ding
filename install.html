@@ -38,7 +38,7 @@
 <body>
 <div class="wrap">
   <h1>B钉 v2 · 安装</h1>
-  <div class="sub">钉钉 / 飞书 / 企业微信 三合一 B站皮肤 · 单文件 157.4 KB · UTF-8</div>
+  <div class="sub">钉钉 / 飞书 / 企业微信 三合一 B站皮肤 · 单文件 178.0 KB · UTF-8</div>
 
   <div class="card">
     <ol>
@@ -104,7 +104,8 @@
     org: "biliding-org-name",
     mask: "biliding-mask",
     playerW: "biliding-player-width",
-    blur: "biliding-page-blur"
+    blur: "biliding-page-blur",
+    aliasOff: "biliding-alias-off"
   };
 
   // ======================= 1. 工具 =======================
@@ -188,6 +189,23 @@
   function clip(s, n) {
     s = String(s || "");
     return s.length &gt; n ? s.slice(0, n) + "…" : s;
+  }
+  // 昵称化名：真实 UP 主 / 吧友名字在 IM 里太扎眼，统一换成固定虚拟人名。
+  // 同一个原名用 hash 取同一名字，既稳定又不像真人；localStorage 关掉就显示原名。
+  var ALIAS_SURNAMES = ["林", "周", "陈", "许", "沈", "顾", "唐", "苏", "叶", "韩", "陆", "江"];
+  var ALIAS_GIVEN = ["望舒", "砚", "亦然", "知远", "清和", "若川", "小满", "斯年", "念之", "以宁", "景行", "南乔", "予安", "星野", "子墨"];
+  function aliasOf(name) {
+    var s = String(name || "").trim();
+    if (!s) return s;
+    if (aliasOff()) return s;
+    var h = hashStr(s);
+    return ALIAS_SURNAMES[h % ALIAS_SURNAMES.length] + ALIAS_GIVEN[(h &gt;&gt; 5) % ALIAS_GIVEN.length];
+  }
+  function aliasOff() { return lsGet(LS.aliasOff, "") === "1"; }
+  function toggleAlias() {
+    lsSet(LS.aliasOff, aliasOff() ? "" : "1");
+    toast(aliasOff() ? "已切回真实昵称" : "已切回化名显示");
+    applyRoute();
   }
 
   // ======================= 2. 图标 =======================
@@ -885,7 +903,10 @@
   .im-chat-head .sub { font-size: 11.5px; color: var(--c-text3); margin-top: 3px; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis; }
   .im-chat-head .acts { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+  /* 默认不横向滚动（否则播放器稍宽就在聊天区底部压出一条横向滚动条）；
+     只有 JS 判定「播放器确实比聊天列宽」时才加 .has-wide-player 打开横向滚动 */
   .im-chat-body { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 14px 22px 8px; }
+  .im-chat-body.has-wide-player { overflow-x: auto; }
 
   .im-daysep { text-align: center; margin: 12px 0 14px; }
   .im-daysep span { font-size: 11px; color: var(--c-text3); }
@@ -946,8 +967,21 @@
      宽度写到 .im-shell 的 --bd-player-w 上，气泡/消息容器跟着一起放，才能「放大」而不是被 760px 裁掉 */
   .bd-player { width: min(var(--bd-player-w, 720px), 100%); aspect-ratio: 16 / 9;
     border-radius: 8px; overflow: hidden; background: #000; position: relative; }
+  /* 拖过手柄后按用户给的宽高走，不再被 16:9 锁住（变量默认值与预设都由 JS 写） */
+  .bd-player.sized { aspect-ratio: auto; height: var(--bd-player-h, auto); }
   .bd-player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .bd-player-main { position: absolute; inset: 0; background: #000; }
+  /* 浮窗：脱离聊天流，浮在整页之上，位置由 JS 写 left/top；拖顶部把手移动 */
+  .bd-player.float { position: fixed !important; z-index: 10000; margin: 0 !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,.45); resize: none; }
+  .bd-player.float .bd-player-hint { display: none; }
+  .bd-player-bar { display: none; }
+  .bd-player.float .bd-player-bar { position: absolute; left: 0; right: 0; top: 0; height: 28px; z-index: 7;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 6px 0 10px;
+    background: linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,0)); color: rgba(255,255,255,.86);
+    font-size: 11.5px; cursor: move; touch-action: none; user-select: none; }
+  .bd-player.float .bd-player-bar .t { pointer-events: none; }
+  .bd-player.float .bd-player-tools { opacity: 1; }
   /* 右下角拖拽手柄 + 角上个「放大 / 全屏」按钮 */
   .bd-player-grip { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; z-index: 4;
     cursor: nwse-resize; touch-action: none;
@@ -965,15 +999,14 @@
     align-items: center; justify-content: center; }
   .bd-player-tools button:hover { background: rgba(0,0,0,.78); }
   .bd-player-tools button svg { width: 14px; height: 14px; }
-  /* 播放器全屏 */
-  .bd-player.full { position: fixed !important; inset: 0; width: 100% !important; height: 100vh !important;
-    max-width: none !important; aspect-ratio: auto !important; border-radius: 0; z-index: 10001; }
-  .bd-player.full .bd-player-grip { display: none; }
-  .im-shell.player-full .im-chat-head { visibility: hidden; }
+  /* 播放器全屏（细则在下面宽高规则之后，那边必须压住气泡宽度，所以只保留那一份） */
   /* 尺寸菜单 */
-  .bd-size-menu { position: fixed; z-index: 10000; min-width: 148px; padding: 6px; border-radius: 10px;
+  .bd-size-menu { position: fixed; z-index: 10000; min-width: 220px; padding: 6px; border-radius: 10px;
     background: var(--c-panel); border: 1px solid var(--c-line); box-shadow: 0 10px 30px rgba(17,24,39,.16);
     animation: bd-fade .12s ease both; }
+  .bd-size-control { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 10px; font-size: 12px; color: var(--c-text2); }
+  .bd-size-control input { grid-column: 1 / -1; width: 100%; accent-color: var(--c-accent); cursor: ew-resize; }
+  .bd-size-control output { color: var(--c-accent); font-variant-numeric: tabular-nums; }
   .bd-size-menu .it { display: flex; align-items: center; justify-content: space-between; gap: 10px;
     height: 32px; padding: 0 10px; border-radius: 7px; font-size: 13px; color: var(--c-text); cursor: pointer; }
   .bd-size-menu .it:hover { background: var(--c-hover); }
@@ -1124,14 +1157,41 @@
     width: min(calc(var(--bd-player-w, 720px) + 24px), 100%);
   }
   .im-bubble.wide .bd-player, .im-bubble.wide .bd-player.sized { width: min(var(--bd-player-w, 720px), 100%); }
+  /* 这些宽度规则特异性比 .bd-player.float 高，会把浮窗压回聊天宽度：浮窗/全屏状态一律让位给 JS 写的尺寸 */
+  .im-bubble.wide .bd-player.float, .im-bubble.wide .bd-player.full,
+  .im-bubble.wide .bd-player.float.sized, .im-bubble.wide .bd-player.full.sized {
+    width: auto; max-width: none;
+  }
   /* 播放器全屏：必须比 .im-shell.page-blur .im-chat-body 的模糊更硬，所以带 !important */
   .bd-player.full {
     position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important;
     max-width: none !important; aspect-ratio: auto !important; border-radius: 0 !important;
     z-index: 10001 !important; filter: none !important;
   }
-  .bd-player.full .bd-player-grip { display: none; }
+  .bd-player.full .bd-player-grip, .bd-player.full .bd-player-bar { display: none; }
   .im-shell.player-full .im-chat-head { visibility: hidden; }
+
+  /* 浮窗模式：祖先一旦带 filter / transform，就会成为 position:fixed 的包含块，
+     把「浮窗」重新钉回聊天区里；浮窗期间取消这些效果，浮窗才能真正脱离聊天区在整页移动。 */
+  .im-shell.player-float .im-chat-body,
+  .im-shell.player-float .im-rail,
+  .im-shell.player-float .im-nav2,
+  .im-shell.player-float .im-strip,
+  .im-shell.player-float .im-list,
+  .im-shell.player-float .im-composer { filter: none !important; }
+  /* 真正的元凶：消息行 .im-msg 带入场动画 bd-fade，动画结束后仍留着 transform: matrix(...)，
+     transform 祖先会让 position:fixed 变成「相对该祖先」定位，于是浮窗的 left/top 和眼睛看到的位置不一致，
+     拖起来就是在飘。浮窗期间把播放器所有祖先的 transform / filter / perspective / contain 一并清掉。 */
+  .im-shell.player-float .im-chat-body,
+  .im-shell.player-float .im-msg,
+  .im-shell.player-float .im-msg-main,
+  .im-shell.player-float .im-bubble {
+    transform: none !important; filter: none !important;
+    perspective: none !important; contain: none !important; will-change: auto !important;
+  }
+  /* 浮窗要在 iframe 之上收到指针事件，否则把手拖不动。
+     注意这里不能写 position:fixed !important —— 会把 JS 设置的 absolute 坐标系顶掉，浮窗就又飘了 */
+  .im-shell.player-float .bd-player.float { z-index: 10000 !important; }
 
   /* 会议背景：模糊聊天与列表，保留顶栏与播放器（全屏播放器不受影响） */
   .im-shell.page-blur .im-rail,
@@ -1336,22 +1396,22 @@
     --c-send-off: #363A41;
   }
 
-  /* 企业微信 5.x 本体没有独立标题栏，但「切换皮肤 / 深色 / 会议背景」必须可达：
-     标题栏本体（默认整个 #FFFFFF 顶栏）照旧隐藏，这三个键被克隆到 .im-tb-wins 浮层，
-     绝对定位在 rail 顶部 org 行的右侧空白处，不占额外高度。 */
+  /* 企业微信 5.x 本体没有独立标题栏，但「切换皮肤 / 登录 / 深色 / 会议背景」必须可达：
+     标题栏本体照旧隐藏，这几个键被克隆成 .im-tb-wins 浮层。
+     浮层贴在 rail 底部（在「收起 / 更多」下方，按钮是横排），不去挤顶部 org 行——
+     rail 只有 168px，4 个键横排塞进 org 行会把组织名压没。 */
   .im-shell[data-skin="wecom"] .im-titlebar { display: none; }
   .im-shell[data-skin="wecom"] .im-body { padding-top: 0; }
-  .im-shell[data-skin="wecom"] .im-rail { position: relative; }
-  .im-tb-wins { position: absolute; top: 15px; right: 10px; display: flex; align-items: center;
-    gap: 1px; z-index: 21; border-radius: 6px; background: var(--c-rail); }
-  .im-tb-wins .im-win { width: 22px; height: 22px; }
-  .im-tb-wins .im-win svg { width: 13px; height: 13px; }
+  .im-shell[data-skin="wecom"] .im-rail-tail { padding-bottom: 6px; }
+  .im-tb-wins { position: static; display: flex; align-items: center; justify-content: center;
+    gap: 2px; margin: 4px 8px 2px; padding: 4px 0; border-radius: 8px;
+    background: var(--c-rail); border: 1px solid var(--c-line-weak); }
+  .im-tb-wins .im-win { width: 28px; height: 24px; }
+  .im-tb-wins .im-win svg { width: 14px; height: 14px; }
 
   /* rail：选中项是蓝色实心，图标与文字转白 */
   .im-shell[data-skin="wecom"] .im-rail { border-right: 1px solid var(--c-line-weak); }
   .im-shell[data-skin="wecom"] .im-org { padding: 12px 12px 10px; }
-  /* rail 只有 168px：右上三枚功能键占掉约 70px，org 行右侧留出空间，避免名字被压成省略号 */
-  .im-shell[data-skin="wecom"] .im-org { padding-right: 76px; }
   .im-shell[data-skin="wecom"] .im-org-meta { overflow: hidden; }
   .im-shell[data-skin="wecom"] .im-org-logo { background: linear-gradient(135deg,#4096FF,#1769D2); color: #fff; }
   .im-shell[data-skin="wecom"] .im-rail-item { height: 38px; border-radius: 6px; }
@@ -1450,7 +1510,6 @@
     }
     return [
       '&lt;div class="im-rail"&gt;',
-      railWinsHtml(),
       '  &lt;div class="im-org" title="' + esc(sk.org) + '"&gt;',
       '    &lt;div class="im-org-logo"&gt;云&lt;/div&gt;',
       '    &lt;div class="im-org-meta"&gt;&lt;div class="im-org-name"&gt;' + esc(sk.org) + '&lt;/div&gt;' +
@@ -1461,6 +1520,7 @@
       '  &lt;div class="im-rail-tail"&gt;',
       '    &lt;button class="im-rail-item" data-act="collapse"&gt;' + SVG.back + '&lt;span&gt;收起&lt;/span&gt;&lt;/button&gt;',
       '    &lt;button class="im-rail-item" data-act="more"&gt;' + SVG.more + '&lt;span&gt;更多&lt;/span&gt;&lt;/button&gt;',
+      railWinsHtml(),
       '  &lt;/div&gt;',
       '&lt;/div&gt;'
     ].join("");
@@ -1959,10 +2019,22 @@
     var body = el.chat &amp;&amp; el.chat.querySelector(".im-chat-body");
     if (body) body.scrollTop = body.scrollHeight;
   }
+  function scrollChatToTop() {
+    var body = el.chat &amp;&amp; el.chat.querySelector(".im-chat-body");
+    if (body) body.scrollTop = 0;
+  }
+
+  // 单聊（视频页）默认停在顶部：先看到播放器，不必每次手动往上拉。
+  // 其余会话保持「进群看最新消息」的 IM 习惯，仍然贴底。按当前会话 id 判断，不靠时序。
+  function scrollChatDefault() {
+    var id = state.activeConv || "";
+    if (id.indexOf("conv:video") === 0 || id.indexOf("video") === 0) { scrollChatToTop(); return; }
+    scrollChatToBottom();
+  }
 
   function bindChatCommon() {
     if (!el.chat) return;
-    scrollChatToBottom();
+    scrollChatDefault();
     el.chat.querySelectorAll(".im-icon-btn").forEach(function (b) {
       if (b.dataset.bound) return;
       if (b.dataset.act === "blur") {
@@ -2037,13 +2109,14 @@
 
   function videoMsgHtml(item, o) {
     o = o || {};
+    var who = aliasOf(o.author || item.owner);
     return msgHtml({
       me: !!o.me,
-      author: o.author || item.owner,
+      author: who,
       time: o.time || fmtRel(item.pubdate),
       face: o.face,
-      avatar: (o.author || item.owner || "?").slice(0, 1),
-      color: avColor(o.author || item.owner || ""),
+      avatar: (who || "?").slice(0, 1),
+      color: avColor(who || ""),
       body: videoCardHtml(item),
       bvid: item.bvid
     });
@@ -2238,19 +2311,23 @@
 
   function paintVideoConversation(v, r, route) {
     var up = v.owner || {}, stat = v.stat || {};
+    var upName = aliasOf(up.name || "视频会话");
     var poster = toHttp(v.pic || "");
     var page = route.page || 1;
     var head = chatHeaderHtml({
-      name: up.name || "视频会话", tag: "UP主",
+      name: upName, tag: "单聊",
       sub: (v.tname || "视频") + " · " + fmtCount(stat.view) + "播放 · " + fmtCount(stat.danmaku) + "弹幕",
       img: toHttp(up.face || ""), color: "#5B8DEF",
-      extraActs: '&lt;button class="im-icon-btn" title="播放器大小 / 全屏" data-act="player-size"&gt;' + SVG.resize + '&lt;/button&gt;'
+      extraActs: '&lt;button class="im-icon-btn" title="浮窗 / 自由缩放（拖动调大小）" data-act="player-float"&gt;' + SVG.resize + '&lt;/button&gt;' +
+        '&lt;button class="im-icon-btn" title="播放器大小 / 全屏" data-act="player-size"&gt;' + SVG.expand + '&lt;/button&gt;' +
+        '&lt;button class="im-icon-btn' + (aliasOff() ? "" : " on") + '" title="化名显示（点一下切回真名）" data-act="alias"&gt;' + SVG.settings + '&lt;/button&gt;'
     });
     var card = '&lt;div class="bd-player"&gt;' +
+      '&lt;div class="bd-player-bar"&gt;&lt;span class="t"&gt;视频会话&lt;/span&gt;&lt;/div&gt;' +
       '&lt;div class="poster" style="background-image:url(' + esc(poster) + ')"&gt;' +
       '&lt;button class="btn"&gt;' + SVG.play + '播放视频&lt;/button&gt;&lt;/div&gt;' +
       playerToolsHtml() +
-      '&lt;span class="bd-player-hint"&gt;拖右下角调大小 · 双击全屏&lt;/span&gt;&lt;/div&gt;' +
+      '&lt;span class="bd-player-hint"&gt;拖右下角改宽高 · 双击全屏&lt;/span&gt;&lt;/div&gt;' +
       '&lt;div style="margin-top:9px;font-size:14px;font-weight:600;line-height:1.5"&gt;' + esc(v.title) + '&lt;/div&gt;' +
       '&lt;div class="bd-stats"&gt;' +
       '&lt;span class="bd-stat"&gt;' + SVG.play + fmtCount(stat.view) + ' 播放&lt;/span&gt;' +
@@ -2261,7 +2338,7 @@
 
     var body = daysep(fmtDate(v.pubdate));
     body += msgHtml({
-      author: up.name || "UP主", face: toHttp(up.face || ""), time: fmtDate(v.pubdate),
+      author: upName, face: toHttp(up.face || ""), time: fmtDate(v.pubdate),
       body: card, wide: true
     });
     var replies = (r &amp;&amp; r.replies) || [];
@@ -2270,14 +2347,25 @@
       replies.forEach(function (rep) {
         var m = rep.member || {};
         var txt = String((rep.content &amp;&amp; rep.content.message) || "");
+        var uname = aliasOf(m.uname || "匿名");
         body += msgHtml({
-          author: m.uname || "匿名", face: m.avatar ? toHttp(m.avatar) : "",
-          avatar: (m.uname || "?").slice(0, 1), color: avColor(m.uname || ""),
+          author: uname, face: m.avatar ? toHttp(m.avatar) : "",
+          avatar: (uname || "?").slice(0, 1), color: avColor(uname),
           time: fmtRel(rep.ctime), body: esc(txt)
         });
       });
     } else {
       body += daysep("暂无评论");
+    }
+    // 正在播放时绝不重建聊天区：重建会把整页视频 iframe 一起销毁重载，画面停在黑屏/重新缓冲，
+    // 用户看到的就是「播放窗口卡住」。已经在播的播放器直接保留，只刷新外层信息。
+    var livePlayer = el.chat &amp;&amp; el.chat.querySelector(".bd-player.playing");
+    if (livePlayer) {
+      var headSlot = el.chat.querySelector(".im-chat-head");
+      if (headSlot) headSlot.outerHTML = head;
+      bindChatCommon();
+      refreshPlayerVars();
+      return;
     }
     el.chat.innerHTML = head + '&lt;div class="im-chat-body"&gt;' + body + '&lt;/div&gt;' +
       composerHtml("评论功能请到 B站原页面（B钉不代发）", true);
@@ -2311,6 +2399,15 @@
         sizeBtn.addEventListener("click", function (e) {
           e.stopPropagation();
           openPlayerSizeMenu(sizeBtn);
+        });
+      }
+      var aliasBtn = el.chat.querySelector('[data-act="alias"]');
+      if (aliasBtn) aliasBtn.addEventListener("click", toggleAlias);
+      var floatBtn = el.chat.querySelector('[data-act="player-float"]');
+      if (floatBtn) {
+        floatBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          setPlayerFloat(playerEl);
         });
       }
     }
@@ -2484,10 +2581,9 @@
       max: 1600,
       preset: 720,
       name: "",
-      // 默认用「本站原生视频页」做同源 iframe：
-      // player.bilibili.com 是外嵌版播放器，天生只给未登录的精简清晰度，且不认本站登录态；
-      // 同源的 www.bilibili.com/video/BVxxx 走的是网页端同一套 playurl，登录后能拿到与官网一致的清晰度。
-      // autoplay=0 &amp; muted=1 抑制自动播放噪音；danmaku 关掉避免和聊天区抢视线。
+      // 必须用「整张视频页」做同源 iframe，不用 player.bilibili.com 轻量嵌入器：
+      // 同源的 www.bilibili.com/video/BVxxx 走网页端同一套 playurl，登录态、清晰度、弹幕、全屏都和官网一致。
+      // autoplay=0 抑制自动播放；danmaku=0 避免弹幕和聊天区抢视线。
       tpl: '//www.bilibili.com/video/__BVID__/?page=__P__&amp;autoplay=0&amp;danmaku=0&amp;high_quality=1',
       cn: 1
     };
@@ -2496,6 +2592,27 @@
   function clampPlayerW(w) {
     var d = state.playerDef || playerDefaults();
     return Math.min(d.max, Math.max(d.min, Math.round(Number(w) || d.preset)));
+  }
+  // 播放器窗口：宽（w）高（h）两个方向都能拖，位置（x/y）只在浮窗模式下用。
+  // 16:9 只是默认比例，拖完就按用户拉的尺寸走（aspect-ratio:auto），不再被比例锁死。
+  // 高度上限按视口算，避免拉出屏幕；没设过高度时用宽度换算的 16:9。
+  function clampPlayerH(h) {
+    var vh = Math.max(180, (window.innerHeight || 900) - 120);
+    var fallback = Math.round(clampPlayerW(Number(lsGet(LS.playerW, 0)) || 720) * 9 / 16);
+    return Math.min(vh, Math.max(180, Math.round(Number(h) || fallback)));
+  }
+  function playerGeom() {
+    var w = Number(lsGet(LS.playerW, 0)) || 0;
+    var h = Number(lsGet("biliding-player-h", 0)) || 0;
+    var px = Number(lsGet("biliding-player-x", 0)) || 0;
+    var py = Number(lsGet("biliding-player-y", 0)) || 0;
+    return { w: w, h: h, x: px, y: py, float: lsGet("biliding-player-float", "") === "1" };
+  }
+  function savePlayerGeom(g) {
+    if (g.w) lsSet(LS.playerW, String(g.w));
+    if (g.h) lsSet("biliding-player-h", String(g.h));
+    if (g.x || g.y) { lsSet("biliding-player-x", String(g.x || 0)); lsSet("biliding-player-y", String(g.y || 0)); }
+    if (typeof g.float === "boolean") lsSet("biliding-player-float", g.float ? "1" : "");
   }
   function chatAreaWidth() {
     var c = el.chat &amp;&amp; (el.chat.querySelector(".im-chat-body") || el.chat);
@@ -2508,42 +2625,117 @@
     return limit;
   }
   // 把宽度写到根节点上（只写 CSS 变量的值，不能写整条声明，否则会在值里生成 "--bd-player-w:" 前缀）
+  // 宽高写成 CSS 变量，气泡和播放器一起放大；高度只作用在播放器本身上。
   var currentW = 0;
   function applyPlayerW(w) {
     currentW = w;
     if (!el.root) return;
+    var floatingPlayer = document.querySelector("#biliding-root .bd-player.float");
+    if (floatingPlayer) floatingPlayer.style.width = w + "px";
     el.root.style.setProperty("--bd-player-w", w + "px");
     [].slice.call(document.querySelectorAll("#biliding-root .im-msg-main.wide")).forEach(function (m) {
       var b = m.querySelector(".im-bubble.wide");
       var pl = m.querySelector(".bd-player");
       if (!b || !pl) return;
+      var row = m.closest(".im-msg") || m;
+      // 浮窗状态下播放器已经脱离聊天流，聊天列不该再按浮窗宽度撑开，
+      // 否则拉大浮窗会在聊天区底部压出一条横向滚动条。
+      if (pl.classList.contains("float")) {
+        b.style.maxWidth = "";
+        b.style.boxSizing = "";
+        b.style.width = "";
+        m.style.maxWidth = "";
+        row.style.width = "";
+        row.style.maxWidth = "";
+        var fb = m.closest(".im-chat-body");
+        if (fb) fb.classList.remove("has-wide-player");
+        return;
+      }
       // 气泡是 border-box，左右各 11px 内边距 + 1px 边框，所以要比播放器宽 24px 才装得下
       var bw = w + 24;
-      b.style.maxWidth = "none";
       b.style.boxSizing = "border-box";
-      b.style.width = bw + "px";
-      pl.style.width = w + "px";
+      // 聊天区真正能放下「气泡 + 头像列 + 间距」的宽度；播放器默认应缩到可用宽度内，
+      // 只有用户主动拉到比它还宽时才进入横向滚动。
+      var bodyEl = m.closest(".im-chat-body");
+      var avail = bodyEl ? bodyEl.clientWidth - 44 - 40 : 0;
+      var needHScroll = avail &gt; 0 &amp;&amp; bw &gt; avail;
+      var fitW = needHScroll ? w : Math.max(160, Math.min(w, avail - 24));
+      var fitBubble = fitW + 24;
+      b.style.maxWidth = "none";
+      b.style.width = fitBubble + "px";
+      pl.style.width = fitW + "px";
       pl.style.maxWidth = "100%";
+      // 记下实际生效宽度，供 applyPlayerBox 复用，避免被原始宽度覆盖
+      pl._bdFitW = fitW;
       // 消息列要比气泡再宽一点（头像列 + 间距），否则气泡会被 74% 的旧规则压回去
-      m.style.maxWidth = (bw + 40) + "px";
+      m.style.maxWidth = (fitBubble + 40) + "px";
+      if (bodyEl) bodyEl.classList.toggle("has-wide-player", needHScroll);
+      if (needHScroll) {
+        // 确实超宽：整行按内容宽度撑开，靠聊天区横向滚动看全
+        row.style.width = "max-content";
+        row.style.maxWidth = "none";
+        b.style.maxWidth = "none";
+      } else {
+        row.style.width = "";
+        row.style.maxWidth = "";
+        b.style.maxWidth = "";
+      }
     });
   }
+  // 高度 / 浮窗统一从这里写，避免两处各自改内联样式打架
+  function applyPlayerBox(w, h, float) {
+    if (!el.root) return;
+    el.root.style.setProperty("--bd-player-w", w + "px");
+    el.root.style.setProperty("--bd-player-h", h + "px");
+    [].slice.call(el.root.querySelectorAll(".bd-player")).forEach(function (pl) {
+      // 聊天内模式下，applyPlayerW 已经把播放器缩到「聊天气区放得下」的宽度，
+      // 这里不要再用原始 w 覆盖回去，否则会出现「明明放得下却把聊天区撑出横向滚动条」。
+      var inChatFit = !float &amp;&amp; !pl.classList.contains("float") ? pl._bdFitW : 0;
+      pl.style.width = (float ? w : (inChatFit || w)) + "px";
+      pl.style.height = h + "px";
+      pl.classList.add("sized");
+      pl.classList.toggle("float", !!float);
+    });
+    // 浮窗放大后可能超出右/下边界：按「当前视觉位置」重新夹一次，把它推回视口内
+    var fp = el.root.querySelector(".bd-player.float");
+    if (fp) {
+      var cur = floatToViewport(fp);
+      var p = setFloatViewportPos(fp, cur.x, cur.y);
+      var g = playerGeom();
+      g.x = p.x;
+      g.y = p.y;
+      savePlayerGeom(g);
+    }
+  }
 
+  // 播放器宽度上限：按「整页视口」算，不再锁死在聊天区宽度里。
+  // 之前用聊天区宽度当上限，滑杆往右拉会被立刻夹回去，看起来就是「只能缩小、不能放大」。
+  function playerMaxW(floating) {
+    var d = state.playerDef || playerDefaults();
+    var room = (window.innerWidth || 1280) - 32;
+    return Math.max(d.min + 40, Math.min(d.max, room));
+  }
   function refreshPlayerVars() {
     if (!el.root) return;
     var d = state.playerDef || playerDefaults();
-    var limit = Math.max(d.min, chatAreaWidth());
-    var saved = Number(lsGet(LS.playerW, 0)) || 0;
-    var w = clampPlayerW(saved || d.preset);
+    var g = playerGeom();
+    // 聊天内模式要按聊天区可用宽度收敛（默认 720 在窄聊天区会溢出、压出横向滚动条）；
+    // 浮窗模式才用视口宽度，这样「放大」才有意义。
+    var limit = g.float ? playerMaxW(true) : Math.max(160, chatAreaWidth());
+    var w = clampPlayerW(g.w || d.preset);
     if (w &gt; limit) w = limit;
-    var player = el.chat &amp;&amp; el.chat.querySelector(".bd-player");
-    if (player) player.classList.toggle("sized", !!saved);
+    var h = clampPlayerH(g.h || Math.round(w * 9 / 16));
+    var player = document.querySelector("#biliding-root .bd-player.float") || (el.chat &amp;&amp; el.chat.querySelector(".bd-player"));
+    if (player) player.classList.toggle("sized", !!g.w);
     state.playerW = w;
     applyPlayerW(w);
+    applyPlayerBox(w, h, g.float);
+    applyFloatPos(player);
   }
   function setPlayerWidth(px, playerEl) {
     var d = state.playerDef || playerDefaults();
-    var limit = Math.max(d.min, chatAreaWidth());
+    var floating = playerEl &amp;&amp; playerEl.classList.contains("float");
+    var limit = playerMaxW(floating);
     var w = clampPlayerW(px);
     if (w &gt; limit) w = limit;
     // 夹到上限时也存「用户点的是哪一档」，否则下次进来会被重新夹小、看起来像没生效
@@ -2551,6 +2743,9 @@
     applyPlayerW(w);
     lsSet(LS.playerW, String(clampPlayerW(px)));
     if (playerEl) playerEl.classList.add("sized");
+    // 真实套用尺寸：浮窗要按新宽度重新钳位置，否则拉到最宽会直接顶出视口右侧
+    var h = clampPlayerH(Number(lsGet("biliding-player-h", 0)) || Math.round(w * 9 / 16));
+    applyPlayerBox(w, h, floating);
     return w;
   }
   function applySavedPlayerWidth(scope) {
@@ -2560,32 +2755,205 @@
     });
   }
 
+  // 右下角手柄：横竖同时拖，宽高一起变。
   function bindPlayerResize(playerEl, handle) {
     var grip = handle || playerEl.querySelector(".bd-player-grip");
     if (!grip || grip.dataset.bound) return;
     grip.dataset.bound = "1";
-    var dragging = false, startX = 0, startW = 0;
+    var dragging = false, startX = 0, startY = 0, startW = 0, startH = 0;
     grip.addEventListener("pointerdown", function (e) {
       if (e.button !== 0) return;
       dragging = true;
-      startX = e.clientX;
-      startW = playerEl.getBoundingClientRect().width;
-      try { grip.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      startX = e.clientX; startY = e.clientY;
+      var r = playerEl.getBoundingClientRect();
+      startW = r.width; startH = r.height;
       e.preventDefault();
       e.stopPropagation();
     });
-    grip.addEventListener("pointermove", function (e) {
+    window.addEventListener("pointermove", function (e) {
       if (!dragging) return;
-      setPlayerWidth(startW + e.clientX - startX, playerEl);
+      var w = startW + e.clientX - startX;
+      var h = startH + e.clientY - startY;
+      var nw = clampPlayerW(w);
+      var nh = clampPlayerH(h);
+      playerEl.style.width = nw + "px";
+      playerEl.style.height = nh + "px";
+      playerEl.classList.add("sized");
+      if (el.root) {
+        el.root.style.setProperty("--bd-player-w", nw + "px");
+        el.root.style.setProperty("--bd-player-h", nh + "px");
+      }
     });
     function end() {
       if (!dragging) return;
       dragging = false;
-      var w = Math.round(playerEl.getBoundingClientRect().width);
-      toast("播放器宽度 " + w + "px，已记住");
+      var r = playerEl.getBoundingClientRect();
+      var g = playerGeom();
+      g.w = Math.round(r.width);
+      g.h = Math.round(r.height);
+      savePlayerGeom(g);
+      toast("播放器 " + g.w + "×" + g.h + "，已记住");
     }
-    grip.addEventListener("pointerup", end);
-    grip.addEventListener("pointercancel", end);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+
+  // 浮窗坐标：浮窗是 absolute，会相对「最近的定位祖先」定位。
+  // .im-msg / .im-chat 这些祖先都带定位或 transform，直接写 left/top 会算到它们身上，
+  // 实测 658+352=1010 就是这样来的。所以浮窗时把宿主改成 .im-shell（铺满视口、position:fixed），
+  // 坐标系就直接等于视口坐标，写多少就是多少。
+  function floatHost() {
+    return (el.root &amp;&amp; el.root.querySelector(".im-shell")) || el.root || document.body;
+  }
+  function floatOrigin() {
+    var host = floatHost();
+    var r = host.getBoundingClientRect();
+    return { x: r.left + (host.clientLeft || 0), y: r.top + (host.clientTop || 0) };
+  }
+  function viewportToFloat(x, y) {
+    var o = floatOrigin();
+    return { x: Math.round(x - o.x), y: Math.round(y - o.y) };
+  }
+  function floatToViewport(playerEl) {
+    var r = playerEl.getBoundingClientRect();
+    return { x: Math.round(r.left), y: Math.round(r.top) };
+  }
+  function clampFloatPos(playerEl, x, y) {
+    // 按视口钳死：否则换个窗口尺寸重进，旧坐标会把浮窗推到屏幕外，看起来就是「点不动」
+    var vw = window.innerWidth || 1200;
+    var vh = window.innerHeight || 900;
+    var w = playerEl.offsetWidth || 720;
+    var h = playerEl.offsetHeight || 405;
+    var maxX = Math.max(0, vw - w - 8);
+    var maxY = Math.max(0, vh - Math.min(h, 80) - 8);
+    return {
+      x: Math.round(Math.min(Math.max(0, x || 0), maxX)),
+      y: Math.round(Math.min(Math.max(0, y || 0), maxY))
+    };
+  }
+  // 入参、出参统一用「视口坐标」，内部再换算成相对定位祖先的偏移
+  function setFloatViewportPos(playerEl, vx, vy) {
+    // 用 absolute 而不是 fixed：fixed 在根节点（本身 fixed）里会被当成「相对包含块」，
+    // 写进去的 left/top 跟眼睛看到的位置对不上，拖起来就飘。absolute 相对最近的定位祖先，
+    // 这里把它交给 .im-shell（铺满视口的 fixed 层），坐标系就是确定的视口坐标。
+    playerEl.style.position = "absolute";
+    var p = clampFloatPos(playerEl, vx, vy);
+    var local = viewportToFloat(p.x, p.y);
+    playerEl.style.left = local.x + "px";
+    playerEl.style.top = local.y + "px";
+    playerEl.style.right = "auto";
+    playerEl.style.bottom = "auto";
+    playerEl.style.margin = "0";
+    return p;
+  }
+  function applyFloatPos(playerEl) {
+    if (!playerEl || !playerEl.classList.contains("float")) return;
+    // 这里不要写 position:fixed —— 会和 setFloatViewportPos 里的 absolute 打架，
+    // 导致坐标系在两种参照系之间跳，拖起来就飘。
+    playerEl.style.zIndex = "10000";
+    playerEl.style.maxWidth = "none";
+    var g = playerGeom();
+    setFloatViewportPos(playerEl, g.x, g.y);
+  }
+  function bindPlayerFloat(playerEl) {
+    var bar = playerEl.querySelector(".bd-player-bar");
+    if (!bar || bar.dataset.bound) return;
+    bar.dataset.bound = "1";
+    var dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+    bar.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0 || e.target.closest("[data-pbtn]")) return;
+      dragging = true;
+      var r = playerEl.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = r.left; startTop = r.top;
+      document.body.style.userSelect = "none";
+      e.preventDefault();
+    });
+    window.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      setFloatViewportPos(playerEl, startLeft + e.clientX - startX, startTop + e.clientY - startY);
+      e.preventDefault();
+    });
+    function end() {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.userSelect = "";
+      var v = floatToViewport(playerEl);
+      var g = playerGeom();
+      g.x = v.x;
+      g.y = v.y;
+      savePlayerGeom(g);
+    }
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+  // 播放器窗口开关：在「聊天内」和「浮在整页之上」之间切换
+  function setPlayerFloat(playerEl, on) {
+    var float = typeof on === "boolean" ? on : !playerEl.classList.contains("float");
+    // 注意：绝对不能把播放器挂到 body 下面。
+    // 皮肤有一条「隐藏原站页面」的规则 html.im-theme body &gt; *:not(#biliding-root) { visibility:hidden;
+    // pointer-events:none }，一旦移出根节点，浮窗就会被连带隐藏 + 不接受点击，表现为「点不动、拖不动」。
+    // 但也必须离开 .im-msg 这层带定位的祖先，否则 absolute 的 left/top 会算到它身上。
+    // 折中：浮窗时挂到 .im-shell（根节点内、铺满视口的 fixed 层），收回时插回原位置。
+    var host = floatHost();
+    if (float) {
+      if (playerEl.parentNode !== host) {
+        playerEl._bdFloatParent = playerEl.parentNode;
+        playerEl._bdFloatNext = playerEl.nextSibling;
+        host.appendChild(playerEl);
+      }
+      playerEl.style.zIndex = "10000";
+      playerEl.style.position = "absolute";
+      playerEl.style.maxWidth = "none";
+    } else {
+      if (playerEl._bdFloatParent) {
+        if (playerEl._bdFloatNext &amp;&amp; playerEl._bdFloatNext.parentNode === playerEl._bdFloatParent) {
+          playerEl._bdFloatParent.insertBefore(playerEl, playerEl._bdFloatNext);
+        } else {
+          playerEl._bdFloatParent.appendChild(playerEl);
+        }
+        playerEl._bdFloatParent = null;
+        playerEl._bdFloatNext = null;
+      }
+      playerEl.style.position = "";
+      playerEl.style.zIndex = "";
+      playerEl.style.maxWidth = "";
+      playerEl.style.left = "";
+      playerEl.style.top = "";
+      playerEl.style.right = "";
+      playerEl.style.bottom = "";
+    }
+    playerEl.classList.toggle("float", float);
+    if (el.root) el.root.classList.toggle("player-float", float);
+    var g = playerGeom();
+    g.float = float;
+    if (float) {
+      // 每次开始浮窗都按当前视口重新落位：旧坐标可能在别的窗口尺寸下已被判为屏幕外
+      var w = playerEl.offsetWidth || g.w || 720;
+      var p = clampFloatPos(playerEl, Math.round((window.innerWidth || 1200) / 2 - w / 2), 72);
+      g.x = p.x;
+      g.y = p.y;
+    } else {
+      // 收回聊天区：浮窗时可以拉到比聊天列还宽，收回来后必须按聊天区重新夹一次，
+      // 否则会残留超出聊天列的宽度，把聊天区压出横向滚动条。
+      var d2 = state.playerDef || playerDefaults();
+      var room = Math.max(d2.min, chatAreaWidth());
+      var back = Math.min(clampPlayerW(Number(lsGet(LS.playerW, 0)) || d2.preset), room);
+      state.playerW = back;
+      lsSet(LS.playerW, String(back));
+      var hh = clampPlayerH(Number(lsGet("biliding-player-h", 0)) || Math.round(back * 9 / 16));
+      applyPlayerW(back);
+      applyPlayerBox(back, hh, false);
+    }
+    savePlayerGeom(g);
+    applyFloatPos(playerEl);
+    var btn = playerEl.querySelector('[data-pbtn="float"]');
+    if (btn) {
+      btn.innerHTML = float ? SVG.shrink : SVG.resize;
+      btn.title = float ? "收回聊天（Esc）" : "浮窗 / 自由缩放";
+    }
+    toast(float ? "浮窗模式：拖顶部把手可移动，右下角可自由调宽高" : "已收回聊天区");
+    return float;
   }
 
   function togglePlayerFull(playerEl, on) {
@@ -2595,7 +2963,10 @@
     var btn = playerEl.querySelector('[data-pbtn="full"]');
     if (btn) btn.innerHTML = full ? SVG.shrink : SVG.expand;
     // 退出全屏后按当前聊天区宽度重算一次
-    if (!full &amp;&amp; el.root) refreshPlayerVars();
+    if (!full &amp;&amp; el.root) {
+      refreshPlayerVars();
+      applyFloatPos(playerEl);
+    }
     if (document.fullscreenElement &amp;&amp; !full) {
       try { document.exitFullscreen(); } catch (e) { /* ignore */ }
     }
@@ -2614,7 +2985,10 @@
     ];
     var menu = document.createElement("div");
     menu.className = "bd-size-menu";
-    menu.innerHTML = presets.map(function (p, i) {
+    menu.innerHTML = '&lt;label class="bd-size-control"&gt;&lt;span&gt;播放器宽度&lt;/span&gt;' +
+      '&lt;input type="range" min="240" max="1600" step="10" value="' + cur + '" aria-label="播放器宽度"&gt;' +
+      '&lt;output&gt;' + cur + 'px&lt;/output&gt;&lt;/label&gt;' +
+      presets.map(function (p, i) {
       // 档位超过聊天区宽度时会一起被夹到上限，只给真正匹配的那一档打勾
       var real = p.w ? Math.min(p.w, limit) : limit;
       var on = Math.abs(real - cur) &lt; 32 &amp;&amp; (i === presets.length - 1 || p.w &lt;= limit);
@@ -2622,6 +2996,8 @@
         '&lt;span&gt;' + p.label + '&lt;/span&gt;&lt;span class="k"&gt;' + real + "px&lt;/span&gt;&lt;/div&gt;";
     }).join("") +
       '&lt;div class="sep"&gt;&lt;/div&gt;' +
+      '&lt;div class="it" data-pact="float"&gt;&lt;span&gt;浮窗（自由缩放 / 拖动）&lt;/span&gt;&lt;span class="k"&gt;' +
+      (playerGeom().float ? "开" : "关") + '&lt;/span&gt;&lt;/div&gt;' +
       '&lt;div class="it" data-pact="full"&gt;' + '&lt;span&gt;全屏&lt;/span&gt;&lt;span class="k"&gt;Esc 退出&lt;/span&gt;&lt;/div&gt;' +
       '&lt;div class="it" data-pact="blur"&gt;' +
       '&lt;span&gt;会议背景（模糊本页）&lt;/span&gt;&lt;span class="k"&gt;' + (state.blur ? "开" : "关") + '&lt;/span&gt;&lt;/div&gt;' +
@@ -2631,13 +3007,28 @@
     var r = anchor.getBoundingClientRect();
     menu.style.top = Math.round(Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + "px";
     menu.style.left = Math.round(Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))) + "px";
+    var widthSlider = menu.querySelector('input[type="range"]');
+    widthSlider.max = String(Math.max(240, Math.min(1600, Math.floor((window.innerWidth || 1600) - 32))));
+    widthSlider.value = String(Math.min(Number(widthSlider.value), Number(widthSlider.max)));
+    var widthOutput = menu.querySelector("output");
+    widthSlider.addEventListener("input", function () {
+      var player = document.querySelector(".bd-player.float") || el.chat.querySelector(".bd-player");
+      var w = setPlayerWidth(Number(widthSlider.value), player);
+      widthOutput.value = w + "px";
+      widthOutput.textContent = w + "px";
+    });
     menu.addEventListener("click", function (e) {
       var it = e.target.closest(".it");
       if (!it) return;
-      var player = el.chat.querySelector(".bd-player");
+      var player = document.querySelector(".bd-player.float") || el.chat.querySelector(".bd-player");
       if (it.dataset.pact === "full") {
         menu.remove();
         if (player) togglePlayerFull(player, true);
+        return;
+      }
+      if (it.dataset.pact === "float") {
+        menu.remove();
+        if (player) setPlayerFloat(player);
         return;
       }
       if (it.dataset.pact === "blur") {
@@ -2666,8 +3057,7 @@
   }
 
   // ---------- 播放源 ----------
-  // 站点自带的播放器组件源码里就有 player.html 的 iframe 痕迹。
-  // 这里不再沿用外嵌播放器地址，只保留原来的「识别站点播放器」副作用，tpl 始终用 playerDefaults() 的同源视频页。
+  // 使用官方轻量嵌入播放器，避免在 iframe 内再加载整张 B 站视频页及其复杂应用脚本。
   function findSitePlayerTpl() {
     try {
       var out = [];
@@ -2714,6 +3104,7 @@
   }
   function playerToolsHtml() {
     return '&lt;div class="bd-player-tools"&gt;' +
+      '&lt;button data-pbtn="float" title="浮窗 / 自由缩放"&gt;' + (playerGeom().float ? SVG.shrink : SVG.resize) + '&lt;/button&gt;' +
       '&lt;button data-pbtn="size" title="播放器大小"&gt;' + SVG.resize + '&lt;/button&gt;' +
       '&lt;button data-pbtn="full" title="全屏"&gt;' + SVG.expand + '&lt;/button&gt;' +
       '&lt;button data-pbtn="go" title="在浏览器新标签打开"&gt;' + SVG.export + '&lt;/button&gt;' +
@@ -2726,14 +3117,18 @@
       e.stopPropagation();
       var act = b.getAttribute("data-pbtn");
       if (act === "size") { openPlayerSizeMenu(b); return; }
+      if (act === "float") { setPlayerFloat(playerEl); return; }
       if (act === "full") { togglePlayerFull(playerEl); return; }
       if (act === "go") { try { window.open("https://www.bilibili.com/video/" + bvid + "/", "_blank"); } catch (err) { toast("浏览器拦截了新标签"); } return; }
     });
-    // 只在 Esc 时退出全屏；用 once 的独立监听避免多次绑定
+    bindPlayerFloat(playerEl);
+    // 只在 Esc 时退出全屏 / 浮窗；用 once 的独立监听避免多次绑定
     if (el.onEscFull) document.removeEventListener("keydown", el.onEscFull);
     el.onEscFull = function (e) {
       if (e.key !== "Escape") return;
-      if (playerEl.classList.contains("full")) togglePlayerFull(playerEl, false);
+      if (playerEl.classList.contains("full")) { togglePlayerFull(playerEl, false); return; }
+      // 浮窗模式下 Esc 先收回聊天区（焦点在 iframe 里时这个监听收不到，属正常限制）
+      if (playerEl.classList.contains("float")) setPlayerFloat(playerEl, false);
     };
     document.addEventListener("keydown", el.onEscFull);
   }
@@ -3045,7 +3440,12 @@
     refreshPlayerVars();
     setBlur(state.blur);
     if (SKIN_OFF) applySkinOff();
-    window.addEventListener("resize", function () { if (el.root) refreshPlayerVars(); });
+    window.addEventListener("resize", function () {
+      if (!el.root) return;
+      refreshPlayerVars();
+      var pl = el.chat &amp;&amp; el.chat.querySelector(".bd-player");
+      if (pl) applyFloatPos(pl);
+    });
     if (!MOCK) {
       var lastHref = location.href;
       setInterval(function () {

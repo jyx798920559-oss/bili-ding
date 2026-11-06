@@ -27,7 +27,8 @@
     org: "biliding-org-name",
     mask: "biliding-mask",
     playerW: "biliding-player-width",
-    blur: "biliding-page-blur"
+    blur: "biliding-page-blur",
+    aliasOff: "biliding-alias-off"
   };
 
   // ======================= 1. 工具 =======================
@@ -111,6 +112,23 @@
   function clip(s, n) {
     s = String(s || "");
     return s.length > n ? s.slice(0, n) + "…" : s;
+  }
+  // 昵称化名：真实 UP 主 / 吧友名字在 IM 里太扎眼，统一换成固定虚拟人名。
+  // 同一个原名用 hash 取同一名字，既稳定又不像真人；localStorage 关掉就显示原名。
+  var ALIAS_SURNAMES = ["林", "周", "陈", "许", "沈", "顾", "唐", "苏", "叶", "韩", "陆", "江"];
+  var ALIAS_GIVEN = ["望舒", "砚", "亦然", "知远", "清和", "若川", "小满", "斯年", "念之", "以宁", "景行", "南乔", "予安", "星野", "子墨"];
+  function aliasOf(name) {
+    var s = String(name || "").trim();
+    if (!s) return s;
+    if (aliasOff()) return s;
+    var h = hashStr(s);
+    return ALIAS_SURNAMES[h % ALIAS_SURNAMES.length] + ALIAS_GIVEN[(h >> 5) % ALIAS_GIVEN.length];
+  }
+  function aliasOff() { return lsGet(LS.aliasOff, "") === "1"; }
+  function toggleAlias() {
+    lsSet(LS.aliasOff, aliasOff() ? "" : "1");
+    toast(aliasOff() ? "已切回真实昵称" : "已切回化名显示");
+    applyRoute();
   }
 
   // ======================= 2. 图标 =======================
